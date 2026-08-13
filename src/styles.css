@@ -290,15 +290,20 @@ textarea::placeholder {
 
 .task-swipe-del {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 96px;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   background: var(--danger);
   color: #fff;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .task-row {
@@ -315,7 +320,7 @@ textarea::placeholder {
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
-  animation: fadeSlideIn 0.22s ease;
+  animation: rowIn 0.22s ease;
   transition:
     transform 0.18s ease,
     background 0.15s,
@@ -1515,6 +1520,16 @@ textarea::placeholder {
   }
   to {
     opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 任务行入场:只用位移不用透明度,避免闪出下层的删除按钮 */
+@keyframes rowIn {
+  from {
+    transform: translateY(6px);
+  }
+  to {
     transform: translateY(0);
   }
 }

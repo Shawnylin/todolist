@@ -53,7 +53,7 @@ export function TaskRow({
       dragging.current = true;
       e.currentTarget.setPointerCapture(e.pointerId);
     }
-    dxRef.current = Math.max(-96, Math.min(96, dxNow));
+    dxRef.current = Math.max(-92, Math.min(92, dxNow));
     setDx(dxRef.current);
   };
   const onPointerEnd = () => {
@@ -67,7 +67,7 @@ export function TaskRow({
       setDx(0);
       toggle();
     } else {
-      setDx(v < -40 ? -96 : 0);
+      setDx(v < -44 ? -92 : 0);
     }
   };
 
@@ -82,7 +82,8 @@ export function TaskRow({
   return (
     <div className="task-row-wrap">
       <button type="button" className="task-swipe-del" onClick={onDelete} aria-label="删除任务">
-        <Trash2 size={19} />
+        <Trash2 size={15} />
+        删除
       </button>
       <div
         className={`task-row ${task.done ? 'done' : ''}`}
