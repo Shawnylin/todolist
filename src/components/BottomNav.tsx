@@ -1,4 +1,4 @@
-import { CalendarDays, ClipboardList, Settings, Sun } from 'lucide-react';
+import { BarChart3, Sparkles, Sun } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { ViewRoute } from '../types';
 
@@ -24,25 +24,18 @@ export function BottomNav({
       onClick: () => navigate({ view: 'today' }),
     },
     {
-      key: 'upcoming',
+      key: 'plan',
       label: '计划',
-      icon: <CalendarDays size={21} />,
-      active: route.view === 'upcoming',
-      onClick: () => navigate({ view: 'upcoming' }),
+      icon: <Sparkles size={21} />,
+      active: route.view === 'plan',
+      onClick: () => navigate({ view: 'plan' }),
     },
     {
-      key: 'inbox',
-      label: '清单',
-      icon: <ClipboardList size={21} />,
-      active: route.view === 'inbox' || route.view === 'list',
-      onClick: () => navigate({ view: 'inbox' }),
-    },
-    {
-      key: 'settings',
-      label: '设置',
-      icon: <Settings size={21} />,
-      active: route.view === 'settings',
-      onClick: () => navigate({ view: 'settings' }),
+      key: 'insights',
+      label: '洞察',
+      icon: <BarChart3 size={21} />,
+      active: route.view === 'insights',
+      onClick: () => navigate({ view: 'insights' }),
     },
   ];
   return (

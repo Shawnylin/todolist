@@ -1,5 +1,5 @@
-import type { AiPlanItem, ParsedInput, Priority, Repeat, Settings, Task } from './types';
-import { toISODate } from './utils/date';
+import type { AiPlanTask, Priority, Settings, Task, TimeSlot } from './types';
+import { SLOT_ORDER } from './utils/slot';
 
 export class AiError extends Error {
   status?: number;
@@ -32,14 +32,20 @@ function friendlyStatus(status: number): string {
 
 const baseOf = (cfg: Settings) => cfg.baseUrl.trim().replace(/\/+$/, '');
 
+interface ChatOpts {
+  json?: boolean;
+  maxTokens?: number;
+  temperature?: number;
+}
+
 export async function chat(
   cfg: Settings,
   system: string,
   user: string,
-  opts: { json?: boolean } = {},
+  opts: ChatOpts = {},
 ): Promise<string> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 60000);
+  const timer = setTimeout(() => controller.abort(), 45000);
   try {
     const res = await fetch(`${baseOf(cfg)}/chat/completions`, {
       method: 'POST',
@@ -48,12 +54,13 @@ export async function chat(
         Authorization: `Bearer ${cfg.apiKey.trim()}`,
       },
       body: JSON.stringify({
-        model: cfg.model.trim() || 'deepseek-chat',
+        model: cfg.model.trim() || 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: system },
           { role: 'user', content: user },
         ],
-        temperature: 0.3,
+        temperature: opts.temperature ?? 0.3,
+        max_tokens: opts.maxTokens ?? 700,
         stream: false,
         ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
       }),
@@ -67,7 +74,7 @@ export async function chat(
   } catch (e) {
     if (e instanceof AiError) throw e;
     if (e instanceof DOMException && e.name === 'AbortError') {
-      throw new AiError('请求超时,请检查网络或更换 API 地址');
+      throw new AiError('请求超时,请稍后重试或更换 API 地址');
     }
     if (e instanceof TypeError) {
       throw new AiError('网络请求失败:可能是网络问题、跨域(CORS)限制或 API 地址不正确,可尝试在设置中更换 API 地址');
@@ -95,53 +102,46 @@ function extractJson(text: string): unknown {
   throw new AiError('AI 返回内容无法解析,请重试');
 }
 
-const PARSE_SYSTEM = `你是一个待办事项解析助手。把用户输入的自然语言解析成结构化任务,只输出 JSON,不要输出其他内容。
-格式:
-{"title":"任务标题(去除日期/时间/优先级等修饰后的简洁标题)","due":"YYYY-MM-DD 或 null","time":"HH:mm 或 null","priority":1|2|3|null(1最高)","listName":"清单名或 null","tags":["标签"],"repeat":"daily|weekday|weekly|monthly|yearly|every-2-days|every-3-weeks 等,或 null","subtasks":["子任务"]}
+const PLAN_SYSTEM = `你是日程规划助手。把用户的一段话拆成一个个具体任务,并分配到"morning/afternoon/evening"(早上/下午/晚上)。
+只输出 JSON:{"tasks":[{"title":"任务标题","slot":"morning|afternoon|evening","dueTime":"HH:mm 或 null","priority":1|2|3|null,"listName":"清单名或 null","notes":"备注或 null"}]}
 规则:
-1. title 保留用户原意,简洁、可执行;
-2. 只有用户明确提到日期/时间才填 due/time,不要臆造;
-3. 没有信息就填 null 或空数组;
-4. 忽略用户提到的敏感或无关信息;`;
+1. 每个动作/事项拆成独立任务,标题 ≤ 20 字、动词开头、保留原意(如"写言语理解"→"写言语理解","然后写资料分析"也是独立任务);
+2. 用户明确说了上午/下午/晚上就按其分配,否则按任务先后顺序依次分配时段;
+3. 没有信息就填 null,不要臆造;
+4. 最多输出 8 条。`;
 
-export async function aiParseTask(cfg: Settings, raw: string): Promise<Partial<ParsedInput>> {
-  const content = await chat(cfg, PARSE_SYSTEM, raw, { json: true });
+export async function aiParseTasks(cfg: Settings, text: string): Promise<AiPlanTask[]> {
+  const content = await chat(cfg, PLAN_SYSTEM, text, { json: true, maxTokens: 900 });
   const obj = extractJson(content) as Record<string, unknown>;
-  const result: Partial<ParsedInput> = {};
-  if (typeof obj.title === 'string' && obj.title.trim()) result.title = obj.title.trim();
-  if (typeof obj.due === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(obj.due)) result.due = obj.due;
-  if (typeof obj.time === 'string' && /^\d{2}:\d{2}$/.test(obj.time)) result.dueTime = obj.time;
-  const p = Number(obj.priority);
-  if (p >= 1 && p <= 3) result.priority = p as Priority;
-  if (typeof obj.listName === 'string' && obj.listName.trim()) result.listName = obj.listName.trim();
-  if (Array.isArray(obj.tags)) {
-    result.tags = (obj.tags as unknown[])
-      .filter((t): t is string => typeof t === 'string' && !!t.trim())
-      .map((t) => t.trim())
-      .slice(0, 8);
+  const arr = Array.isArray(obj.tasks) ? (obj.tasks as unknown[]) : [];
+  const out: AiPlanTask[] = [];
+  let auto = 0;
+  for (const it of arr) {
+    const o = it as Record<string, unknown>;
+    const title = typeof o.title === 'string' ? o.title.trim().slice(0, 40) : '';
+    if (!title) continue;
+    let slot = (o.slot === 'morning' || o.slot === 'afternoon' || o.slot === 'evening'
+      ? o.slot
+      : undefined) as TimeSlot | undefined;
+    if (!slot) slot = SLOT_ORDER[auto % SLOT_ORDER.length];
+    auto++;
+    const p = Number(o.priority);
+    out.push({
+      title,
+      slot,
+      dueTime: typeof o.dueTime === 'string' && /^\d{2}:\d{2}$/.test(o.dueTime) ? o.dueTime : undefined,
+      priority: p >= 1 && p <= 3 ? (p as Priority) : 0,
+      listName: typeof o.listName === 'string' && o.listName.trim() ? o.listName.trim() : undefined,
+      notes: typeof o.notes === 'string' && o.notes.trim() ? o.notes.trim().slice(0, 200) : undefined,
+    });
+    if (out.length >= 8) break;
   }
-  if (typeof obj.repeat === 'string') {
-    const r = obj.repeat.trim();
-    const map: Record<string, Repeat> = {
-      daily: { freq: 'day', interval: 1 },
-      weekday: { freq: 'weekday', interval: 1 },
-      weekly: { freq: 'week', interval: 1 },
-      monthly: { freq: 'month', interval: 1 },
-      yearly: { freq: 'year', interval: 1 },
-    };
-    if (map[r]) result.repeat = map[r];
-    else {
-      const m = r.match(/^every-(\d+)-(day|week|month|year)s?$/);
-      if (m) {
-        result.repeat = { freq: m[2] as Repeat['freq'], interval: Number(m[1]) };
-      }
-    }
-  }
-  return result;
+  if (!out.length) throw new AiError('AI 未能识别出任务,请换一种说法');
+  return out;
 }
 
-const BREAKDOWN_SYSTEM = `你是任务拆解助手。把用户的任务拆解成 3-7 个可以直接执行的具体子步骤,每步 4-24 个字,动词开头,不重复。
-只输出 JSON:{"subtasks":["...","..."]}`;
+const BREAKDOWN_SYSTEM = `你是任务拆解助手。把任务拆成 3-7 个可直接执行的子步骤,每步 4-20 字、动词开头。
+只输出 JSON:{"subtasks":["..."]}`;
 
 export async function aiBreakdown(cfg: Settings, task: Task): Promise<string[]> {
   const content = await chat(
@@ -151,11 +151,10 @@ export async function aiBreakdown(cfg: Settings, task: Task): Promise<string[]> 
       title: task.title,
       notes: task.notes,
       due: task.due,
-      time: task.dueTime,
       tags: task.tags,
       subtasks: task.subtasks.map((s) => s.title),
     }),
-    { json: true },
+    { json: true, maxTokens: 400 },
   );
   const obj = extractJson(content) as Record<string, unknown>;
   const subs = Array.isArray(obj.subtasks)
@@ -163,51 +162,6 @@ export async function aiBreakdown(cfg: Settings, task: Task): Promise<string[]> 
     : [];
   if (!subs.length) throw new AiError('AI 未能生成子任务,请换个说法再试');
   return subs.slice(0, 10);
-}
-
-const PLAN_SYSTEM = `你是时间管理教练。根据用户今天(或已逾期)的待办列表,给出执行顺序与优先级建议。
-只输出 JSON:{"plan":[{"title":"必须与输入中某个任务的标题完全一致","priority":1|2|3(1最高)","reason":"一句简短中文理由"}]}
-要求:
-1. title 必须原样引用输入中的任务标题,不要改写;
-2. 按「紧急且重要 → 重要 → 琐碎」排序,最多返回前 8 项;
-3. reason 控制在 30 字以内,具体、可执行。`;
-
-export async function aiTodayPlan(cfg: Settings, tasks: Task[]): Promise<AiPlanItem[]> {
-  const payload = tasks.map((t) => ({
-    title: t.title,
-    due: t.due,
-    time: t.dueTime,
-    priority: t.priority,
-    notes: t.notes,
-  }));
-  const content = await chat(cfg, PLAN_SYSTEM, JSON.stringify(payload), { json: true });
-  const obj = extractJson(content) as { plan?: unknown };
-  const plan = Array.isArray(obj.plan) ? (obj.plan as unknown[]) : [];
-  return plan
-    .map((it) => {
-      const o = it as Record<string, unknown>;
-      const p = Number(o.priority);
-      return {
-        title: typeof o.title === 'string' ? o.title.trim() : '',
-        priority: (p >= 1 && p <= 3 ? p : 2) as Priority,
-        reason: typeof o.reason === 'string' ? o.reason.trim() : '',
-      };
-    })
-    .filter((it) => it.title)
-    .slice(0, 8);
-}
-
-/** 用「今天」构造一次完整的智能解析(补充 parse 缺失字段) */
-export function mergeParse(base: ParsedInput, ai: Partial<ParsedInput>): ParsedInput {
-  return {
-    title: ai.title || base.title,
-    due: base.due ?? ai.due,
-    dueTime: base.dueTime ?? ai.dueTime,
-    priority: (base.priority || ai.priority || 0) as Priority,
-    listName: base.listName ?? ai.listName,
-    tags: base.tags.length ? base.tags : (ai.tags ?? []),
-    repeat: base.repeat ?? ai.repeat,
-  };
 }
 
 export async function testConnection(cfg: Settings): Promise<void> {
@@ -232,8 +186,4 @@ export async function testConnection(cfg: Settings): Promise<void> {
   } finally {
     clearTimeout(timer);
   }
-}
-
-export function todayStr(): string {
-  return toISODate(new Date());
 }

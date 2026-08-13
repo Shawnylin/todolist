@@ -1,5 +1,7 @@
 export type Priority = 0 | 1 | 2 | 3; // 0 = 无,1 最高(红),2(橙),3(蓝)
 
+export type TimeSlot = 'morning' | 'afternoon' | 'evening';
+
 export type RepeatFreq = 'day' | 'week' | 'month' | 'year' | 'weekday';
 
 export interface Repeat {
@@ -21,6 +23,7 @@ export interface Task {
   priority: Priority;
   due?: string; // 'YYYY-MM-DD'
   dueTime?: string; // 'HH:mm'
+  slot?: TimeSlot; // 时段:早上/下午/晚上
   tags: string[];
   subtasks: Subtask[];
   repeat?: Repeat;
@@ -42,7 +45,7 @@ export type ThemeMode = 'light' | 'dark' | 'system';
 export interface Settings {
   apiKey: string;
   baseUrl: string; // 默认 https://api.deepseek.com
-  model: string; // 默认 deepseek-chat
+  model: string; // 默认 deepseek-v4-flash
   theme: ThemeMode;
   /** 是否已看过欢迎引导 */
   onboarded: boolean;
@@ -59,7 +62,7 @@ export const INBOX_ID = 'inbox';
 export const DEFAULT_SETTINGS: Settings = {
   apiKey: '',
   baseUrl: 'https://api.deepseek.com',
-  model: 'deepseek-chat',
+  model: 'deepseek-v4-flash',
   theme: 'system',
   onboarded: false,
 };
@@ -104,17 +107,18 @@ export interface ParsedInput {
   repeat?: Repeat;
 }
 
-export interface AiPlanItem {
+/** AI 解析出的一条计划任务 */
+export interface AiPlanTask {
   title: string;
+  slot: TimeSlot;
+  dueTime?: string;
   priority: Priority;
-  reason: string;
+  listName?: string;
+  notes?: string;
 }
 
 export type ViewRoute =
   | { view: 'today' }
-  | { view: 'upcoming' }
-  | { view: 'inbox' }
-  | { view: 'list'; listId: string }
-  | { view: 'completed' }
-  | { view: 'search' }
+  | { view: 'plan' }
+  | { view: 'insights' }
   | { view: 'settings' };

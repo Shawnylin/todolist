@@ -14,10 +14,11 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import type { Priority, Repeat as RepeatType, Task } from '../types';
+import type { Priority, Repeat as RepeatType, Task, TimeSlot } from '../types';
 import { aiBreakdown, hasAiKey } from '../ai';
 import { useApp } from '../store';
 import { formatDue, pad2, parseISODate, repeatLabel, todayISO, toISODate, uid } from '../utils/date';
+import { SLOT_LABEL, SLOT_ORDER } from '../utils/slot';
 import { useToast } from './Toast';
 import { ListIcon } from './icons';
 
@@ -31,6 +32,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
   const [calOpen, setCalOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [repeatOpen, setRepeatOpen] = useState(false);
+  const [slotOpen, setSlotOpen] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
@@ -135,6 +137,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
                 setCalOpen((v) => !v);
                 setListOpen(false);
                 setRepeatOpen(false);
+                setSlotOpen(false);
               }}
             >
               <Calendar size={17} className="meta-row-icon" />
@@ -167,11 +170,59 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
 
             <button
               type="button"
+              className={`meta-row ${slotOpen ? 'open' : ''}`}
+              onClick={() => {
+                setSlotOpen((v) => !v);
+                setCalOpen(false);
+                setListOpen(false);
+                setRepeatOpen(false);
+              }}
+            >
+              <SunriseIcon />
+              <span className="meta-row-label">时段</span>
+              <span className="meta-row-value">
+                {task.slot ? SLOT_LABEL[task.slot] : '未设置'}
+              </span>
+              <ChevronDown size={15} className="meta-row-chev" />
+            </button>
+            {slotOpen && (
+              <div className="inline-panel">
+                <div className="repeat-chips">
+                  <button
+                    type="button"
+                    className={`chip chip-btn ${!task.slot ? 'active' : ''}`}
+                    onClick={() => {
+                      patch({ slot: undefined });
+                      setSlotOpen(false);
+                    }}
+                  >
+                    未设置
+                  </button>
+                  {SLOT_ORDER.map((s: TimeSlot) => (
+                    <button
+                      type="button"
+                      key={s}
+                      className={`chip chip-btn ${task.slot === s ? 'active' : ''}`}
+                      onClick={() => {
+                        patch({ slot: s });
+                        setSlotOpen(false);
+                      }}
+                    >
+                      {SLOT_LABEL[s]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <button
+              type="button"
               className={`meta-row ${listOpen ? 'open' : ''}`}
               onClick={() => {
                 setListOpen((v) => !v);
                 setCalOpen(false);
                 setRepeatOpen(false);
+                setSlotOpen(false);
               }}
             >
               <ListIcon name={list?.icon ?? 'inbox'} size={17} className="meta-row-icon" />
@@ -235,6 +286,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
                 setRepeatOpen((v) => !v);
                 setCalOpen(false);
                 setListOpen(false);
+                setSlotOpen(false);
               }}
             >
               <Repeat size={17} className="meta-row-icon" />
@@ -613,6 +665,31 @@ function ClockIcon() {
     >
       <circle cx="12" cy="12" r="10" />
       <polyline points="12 6 12 12 16 14" />
+    </svg>
+  );
+}
+
+function SunriseIcon() {
+  return (
+    <svg
+      width="17"
+      height="17"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="meta-row-icon"
+    >
+      <path d="M12 2v8" />
+      <path d="m4.93 10.93 1.41 1.41" />
+      <path d="M2 18h2" />
+      <path d="M20 18h2" />
+      <path d="m19.07 10.93-1.41 1.41" />
+      <path d="M22 22H2" />
+      <path d="m8 6 4-4 4 4" />
+      <path d="M16 18a4 4 0 0 0-8 0" />
     </svg>
   );
 }

@@ -7,7 +7,7 @@ import {
   type Dispatch,
   type ReactNode,
 } from 'react';
-import type { AppState, ParsedInput, Settings, Task, TaskList } from './types';
+import type { AppState, ParsedInput, Settings, Task, TaskList, TimeSlot } from './types';
 import { DEFAULT_SETTINGS, INBOX_ID } from './types';
 import { loadAll, saveAll } from './db';
 import { nextDueISO, uid } from './utils/date';
@@ -145,6 +145,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let alive = true;
     loadAll().then((s) => {
       if (!alive) return;
+      // 旧版本默认模型迁移:deepseek-chat 已停用 → deepseek-v4-flash
+      if (!s.settings.model || s.settings.model === 'deepseek-chat') {
+        s.settings.model = 'deepseek-v4-flash';
+      }
       hydrated.current = true;
       dispatch({ type: 'hydrate', state: s });
     });
@@ -193,6 +197,7 @@ export function buildTask(
   parsed: ParsedInput,
   lists: TaskList[],
   defaultListId: string,
+  slot?: TimeSlot,
 ): Task {
   let listId = defaultListId;
   if (parsed.listName) {
@@ -211,6 +216,7 @@ export function buildTask(
     priority: parsed.priority,
     due: parsed.due,
     dueTime: parsed.dueTime,
+    slot,
     tags: parsed.tags,
     subtasks: [],
     repeat: parsed.repeat,

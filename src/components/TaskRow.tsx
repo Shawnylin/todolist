@@ -3,6 +3,7 @@ import { Check, CheckSquare, Clock, Flag, Repeat, Trash2 } from 'lucide-react';
 import type { Task } from '../types';
 import { useApp } from '../store';
 import { formatDueShort, isOverdue, repeatLabel } from '../utils/date';
+import { SLOT_LABEL } from '../utils/slot';
 import { useToast } from './Toast';
 import { ListIcon } from './icons';
 
@@ -11,10 +12,12 @@ const PRIORITY_COLOR: Record<number, string> = { 1: '#E5484D', 2: '#F76B15', 3: 
 export function TaskRow({
   task,
   showList = false,
+  showSlot = false,
   onOpen,
 }: {
   task: Task;
   showList?: boolean;
+  showSlot?: boolean;
   onOpen: () => void;
 }) {
   const { state, dispatch } = useApp();
@@ -117,8 +120,20 @@ export function TaskRow({
 
         <div className="task-main">
           <div className="task-title">{task.title}</div>
-          {(task.due || task.dueTime || task.tags.length > 0 || task.subtasks.length > 0 || task.repeat || showList) && (
+          {(task.due ||
+            task.dueTime ||
+            task.tags.length > 0 ||
+            task.subtasks.length > 0 ||
+            task.repeat ||
+            showList ||
+            (showSlot && task.slot)) && (
             <div className="task-meta">
+              {showSlot && task.slot && (
+                <span className="meta-chip slot">
+                  <Clock size={12} />
+                  {SLOT_LABEL[task.slot]}
+                </span>
+              )}
               {task.due && (
                 <span className={`meta-chip due ${overdue ? 'overdue' : ''}`}>
                   <CalendarIcon />

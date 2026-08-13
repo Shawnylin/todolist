@@ -1,21 +1,12 @@
-import { CalendarDays, CheckCircle2, Inbox, Plus, Settings, Sun } from 'lucide-react';
-import type { CSSProperties, ReactNode } from 'react';
-import type { TaskList, ViewRoute } from '../types';
-import { INBOX_ID } from '../types';
-import { ListIcon, AppLogo } from './icons';
+import { BarChart3, Settings, Sparkles, Sun } from 'lucide-react';
+import type { ReactNode } from 'react';
+import type { ViewRoute } from '../types';
+import { AppLogo } from './icons';
 
 interface Props {
   route: ViewRoute;
   navigate: (r: ViewRoute) => void;
-  counts: {
-    today: number;
-    upcoming: number;
-    inbox: number;
-    completed: number;
-    perList: Record<string, number>;
-  };
-  lists: TaskList[];
-  onNewList: () => void;
+  todayCount: number;
 }
 
 function NavItem({
@@ -23,14 +14,12 @@ function NavItem({
   icon,
   label,
   count,
-  color,
   onClick,
 }: {
   active: boolean;
   icon: ReactNode;
   label: string;
   count?: number;
-  color?: string;
   onClick: () => void;
 }) {
   return (
@@ -38,7 +27,6 @@ function NavItem({
       type="button"
       className={`nav-item ${active ? 'active' : ''}`}
       onClick={onClick}
-      style={active && color ? ({ '--nav-accent': color } as CSSProperties) : undefined}
     >
       <span className="nav-icon">{icon}</span>
       <span className="nav-label">{label}</span>
@@ -47,8 +35,7 @@ function NavItem({
   );
 }
 
-export function Sidebar({ route, navigate, counts, lists, onNewList }: Props) {
-  const customLists = lists.filter((l) => l.id !== INBOX_ID);
+export function Sidebar({ route, navigate, todayCount }: Props) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -64,57 +51,20 @@ export function Sidebar({ route, navigate, counts, lists, onNewList }: Props) {
           active={route.view === 'today'}
           icon={<Sun size={19} />}
           label="今天"
-          count={counts.today}
+          count={todayCount}
           onClick={() => navigate({ view: 'today' })}
         />
         <NavItem
-          active={route.view === 'upcoming'}
-          icon={<CalendarDays size={19} />}
+          active={route.view === 'plan'}
+          icon={<Sparkles size={19} />}
           label="计划"
-          count={counts.upcoming}
-          onClick={() => navigate({ view: 'upcoming' })}
+          onClick={() => navigate({ view: 'plan' })}
         />
         <NavItem
-          active={route.view === 'inbox'}
-          icon={<Inbox size={19} />}
-          label="收件箱"
-          count={counts.inbox}
-          onClick={() => navigate({ view: 'inbox' })}
-        />
-
-        <div className="nav-group-label">
-          <span>清单</span>
-          <button
-            type="button"
-            className="icon-btn"
-            title="新建清单"
-            aria-label="新建清单"
-            onClick={onNewList}
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-        {customLists.map((l) => (
-          <NavItem
-            key={l.id}
-            active={route.view === 'list' && route.listId === l.id}
-            icon={<ListIcon name={l.icon} size={18} />}
-            label={l.name}
-            count={counts.perList[l.id]}
-            color={l.color}
-            onClick={() => navigate({ view: 'list', listId: l.id })}
-          />
-        ))}
-        {customLists.length === 0 && (
-          <div className="nav-empty-hint">点击 + 创建你的第一个清单</div>
-        )}
-
-        <NavItem
-          active={route.view === 'completed'}
-          icon={<CheckCircle2 size={19} />}
-          label="已完成"
-          count={counts.completed}
-          onClick={() => navigate({ view: 'completed' })}
+          active={route.view === 'insights'}
+          icon={<BarChart3 size={19} />}
+          label="洞察"
+          onClick={() => navigate({ view: 'insights' })}
         />
       </nav>
 

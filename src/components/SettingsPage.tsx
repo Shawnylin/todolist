@@ -184,7 +184,7 @@ export function SettingsPage({ openListEditor, installAvailable, onInstall }: Pr
           <input
             className="field-input"
             type="text"
-            placeholder="deepseek-chat"
+            placeholder="deepseek-v4-flash"
             autoComplete="off"
             value={s.model}
             onChange={(e) => setS({ model: e.target.value.trim() })}
