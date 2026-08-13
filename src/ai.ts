@@ -33,7 +33,6 @@ function friendlyStatus(status: number): string {
 const baseOf = (cfg: Settings) => cfg.baseUrl.trim().replace(/\/+$/, '');
 
 interface ChatOpts {
-  json?: boolean;
   maxTokens?: number;
   temperature?: number;
 }
@@ -62,11 +61,21 @@ export async function chat(
         temperature: opts.temperature ?? 0.3,
         max_tokens: opts.maxTokens ?? 700,
         stream: false,
-        ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
       }),
       signal: controller.signal,
     });
-    if (!res.ok) throw new AiError(friendlyStatus(res.status), res.status);
+    if (!res.ok) {
+      // 尽量把服务端的错误原因带出来,方便排查
+      let detail = '';
+      try {
+        const body = await res.json();
+        const msg = body?.error?.message;
+        if (typeof msg === 'string' && msg) detail = `:${msg}`;
+      } catch {
+        /* ignore */
+      }
+      throw new AiError(`${friendlyStatus(res.status)}${detail}`, res.status);
+    }
     const data = await res.json();
     const content: string = data?.choices?.[0]?.message?.content ?? '';
     if (!content) throw new AiError('AI 返回内容为空,请重试');
@@ -85,13 +94,15 @@ export async function chat(
   }
 }
 
+/** 从模型输出中提取 JSON:容忍 ```json 代码块与前后废话 */
 function extractJson(text: string): unknown {
+  const cleaned = text.replace(/```(?:json)?/gi, '').trim();
   try {
-    return JSON.parse(text);
+    return JSON.parse(cleaned);
   } catch {
     /* 继续尝试提取 */
   }
-  const m = text.match(/\{[\s\S]*\}/);
+  const m = cleaned.match(/\{[\s\S]*\}/);
   if (m) {
     try {
       return JSON.parse(m[0]);
@@ -103,7 +114,8 @@ function extractJson(text: string): unknown {
 }
 
 const PLAN_SYSTEM = `你是日程规划助手。把用户的一段话拆成一个个具体任务,并分配到"morning/afternoon/evening"(早上/下午/晚上)。
-只输出 JSON:{"tasks":[{"title":"任务标题","slot":"morning|afternoon|evening","dueTime":"HH:mm 或 null","priority":1|2|3|null,"listName":"清单名或 null","notes":"备注或 null"}]}
+只输出一个 JSON 对象本身,不要输出任何解释、不要用 markdown 代码块。
+格式:{"tasks":[{"title":"任务标题","slot":"morning|afternoon|evening","dueTime":"HH:mm 或 null","priority":1|2|3|null,"listName":"清单名或 null","notes":"备注或 null"}]}
 规则:
 1. 每个动作/事项拆成独立任务,标题 ≤ 20 字、动词开头、保留原意(如"写言语理解"→"写言语理解","然后写资料分析"也是独立任务);
 2. 用户明确说了上午/下午/晚上就按其分配,否则按任务先后顺序依次分配时段;
@@ -111,7 +123,7 @@ const PLAN_SYSTEM = `你是日程规划助手。把用户的一段话拆成一�
 4. 最多输出 8 条。`;
 
 export async function aiParseTasks(cfg: Settings, text: string): Promise<AiPlanTask[]> {
-  const content = await chat(cfg, PLAN_SYSTEM, text, { json: true, maxTokens: 900 });
+  const content = await chat(cfg, PLAN_SYSTEM, text, { maxTokens: 900 });
   const obj = extractJson(content) as Record<string, unknown>;
   const arr = Array.isArray(obj.tasks) ? (obj.tasks as unknown[]) : [];
   const out: AiPlanTask[] = [];
@@ -140,26 +152,38 @@ export async function aiParseTasks(cfg: Settings, text: string): Promise<AiPlanT
   return out;
 }
 
-const BREAKDOWN_SYSTEM = `你是任务拆解助手。把任务拆成 3-7 个可直接执行的子步骤,每步 4-20 字、动词开头。
-只输出 JSON:{"subtasks":["..."]}`;
+const BREAKDOWN_SYSTEM = `你是任务拆解助手。把用户任务拆成 3-7 个可直接执行的子步骤,每步 4-20 字、动词开头。
+只输出一个 JSON 对象本身,不要输出任何解释、不要用 markdown 代码块。
+格式:{"subtasks":["子步骤1","子步骤2"]}`;
+
+/** 兜底:当模型输出不是 JSON 时,尝试按行/编号解析出子步骤 */
+function parseSubtaskList(text: string): string[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^\s*(?:[-*•]|\d+[.、)])?\s*/, '').trim())
+    .filter((l) => l.length >= 2 && l.length <= 40 && !/^[{}[\]"'`]/.test(l));
+  return [...new Set(lines)].slice(0, 10);
+}
 
 export async function aiBreakdown(cfg: Settings, task: Task): Promise<string[]> {
   const content = await chat(
     cfg,
     BREAKDOWN_SYSTEM,
-    JSON.stringify({
-      title: task.title,
-      notes: task.notes,
-      due: task.due,
-      tags: task.tags,
-      subtasks: task.subtasks.map((s) => s.title),
-    }),
-    { json: true, maxTokens: 400 },
+    `任务:${task.title}${task.notes ? `\n备注:${task.notes}` : ''}${
+      task.subtasks.length ? `\n已有子任务:${task.subtasks.map((s) => s.title).join('、')}` : ''
+    }`,
+    { maxTokens: 400, temperature: 0.5 },
   );
-  const obj = extractJson(content) as Record<string, unknown>;
-  const subs = Array.isArray(obj.subtasks)
-    ? (obj.subtasks as unknown[]).filter((t): t is string => typeof t === 'string' && !!t.trim())
-    : [];
+  let subs: string[] = [];
+  try {
+    const obj = extractJson(content) as Record<string, unknown>;
+    subs = Array.isArray(obj.subtasks)
+      ? (obj.subtasks as unknown[]).filter((t): t is string => typeof t === 'string' && !!t.trim())
+      : [];
+  } catch {
+    subs = [];
+  }
+  if (!subs.length) subs = parseSubtaskList(content);
   if (!subs.length) throw new AiError('AI 未能生成子任务,请换个说法再试');
   return subs.slice(0, 10);
 }

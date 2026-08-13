@@ -33,6 +33,8 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
   const [slotOpen, setSlotOpen] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -79,8 +81,10 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
     setAiBusy(true);
     try {
       const subs = await aiBreakdown(state.settings, task);
-      const existing = task.subtasks.filter((s) => !s.done);
       const fresh = subs.map((t) => ({ id: uid(), title: t, done: false }));
+      // 基于最新状态追加,避免覆盖等待期间用户对子任务的操作
+      const current = stateRef.current.tasks.find((t) => t.id === taskId);
+      const existing = current ? current.subtasks.filter((s) => !s.done) : [];
       patch({ subtasks: [...existing, ...fresh] });
       push(`AI 已添加 ${subs.length} 个子任务`);
     } catch (e) {
