@@ -20,7 +20,6 @@ import { useApp } from '../store';
 import { formatDue, pad2, parseISODate, repeatLabel, todayISO, toISODate, uid } from '../utils/date';
 import { SLOT_LABEL, SLOT_ORDER } from '../utils/slot';
 import { useToast } from './Toast';
-import { ListIcon } from './icons';
 
 const PRIORITY_COLOR: Record<number, string> = { 1: '#E5484D', 2: '#F76B15', 3: '#2F6FEB' };
 
@@ -30,7 +29,6 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
   const task = state.tasks.find((t) => t.id === taskId);
 
   const [calOpen, setCalOpen] = useState(false);
-  const [listOpen, setListOpen] = useState(false);
   const [repeatOpen, setRepeatOpen] = useState(false);
   const [slotOpen, setSlotOpen] = useState(false);
   const [aiBusy, setAiBusy] = useState(false);
@@ -55,7 +53,6 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
   if (!task) return null;
 
   const patch = (p: Partial<Task>) => dispatch({ type: 'updateTask', id: task.id, patch: p });
-  const list = state.lists.find((l) => l.id === task.listId);
   const doneSubs = task.subtasks.filter((s) => s.done).length;
 
   const toggleDone = () => {
@@ -107,7 +104,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
           <button
             type="button"
             className={`detail-check ${task.done ? 'checked' : ''}`}
-            style={task.done ? { background: list?.color ?? 'var(--accent)' } : undefined}
+            style={task.done ? { background: 'var(--accent)' } : undefined}
             onClick={toggleDone}
             aria-label={task.done ? '标记为未完成' : '标记为完成'}
           >
@@ -135,7 +132,6 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
               className={`meta-row ${calOpen ? 'open' : ''}`}
               onClick={() => {
                 setCalOpen((v) => !v);
-                setListOpen(false);
                 setRepeatOpen(false);
                 setSlotOpen(false);
               }}
@@ -174,7 +170,6 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
               onClick={() => {
                 setSlotOpen((v) => !v);
                 setCalOpen(false);
-                setListOpen(false);
                 setRepeatOpen(false);
               }}
             >
@@ -215,43 +210,6 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
               </div>
             )}
 
-            <button
-              type="button"
-              className={`meta-row ${listOpen ? 'open' : ''}`}
-              onClick={() => {
-                setListOpen((v) => !v);
-                setCalOpen(false);
-                setRepeatOpen(false);
-                setSlotOpen(false);
-              }}
-            >
-              <ListIcon name={list?.icon ?? 'inbox'} size={17} className="meta-row-icon" />
-              <span className="meta-row-label">清单</span>
-              <span className="meta-row-value" style={{ color: list?.color }}>
-                {list?.name ?? '收件箱'}
-              </span>
-              <ChevronDown size={15} className="meta-row-chev" />
-            </button>
-            {listOpen && (
-              <div className="inline-panel">
-                {state.lists.map((l) => (
-                  <button
-                    type="button"
-                    key={l.id}
-                    className={`popover-item ${l.id === task.listId ? 'active' : ''}`}
-                    onClick={() => {
-                      patch({ listId: l.id });
-                      setListOpen(false);
-                    }}
-                  >
-                    <ListIcon name={l.icon} size={16} className="popover-item-icon" />
-                    <span className="popover-item-label">{l.name}</span>
-                    {l.id === task.listId && <Check size={15} className="popover-item-check" />}
-                  </button>
-                ))}
-              </div>
-            )}
-
             <div className="meta-row priority-row">
               <Flag size={17} className="meta-row-icon" />
               <span className="meta-row-label">优先级</span>
@@ -285,7 +243,6 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
               onClick={() => {
                 setRepeatOpen((v) => !v);
                 setCalOpen(false);
-                setListOpen(false);
                 setSlotOpen(false);
               }}
             >

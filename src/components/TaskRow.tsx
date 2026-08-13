@@ -5,22 +5,19 @@ import { useApp } from '../store';
 import { formatDueShort, isOverdue, repeatLabel } from '../utils/date';
 import { SLOT_LABEL } from '../utils/slot';
 import { useToast } from './Toast';
-import { ListIcon } from './icons';
 
 const PRIORITY_COLOR: Record<number, string> = { 1: '#E5484D', 2: '#F76B15', 3: '#2F6FEB' };
 
 export function TaskRow({
   task,
-  showList = false,
   showSlot = false,
   onOpen,
 }: {
   task: Task;
-  showList?: boolean;
   showSlot?: boolean;
   onOpen: () => void;
 }) {
-  const { state, dispatch } = useApp();
+  const { dispatch } = useApp();
   const { push } = useToast();
   const [dx, setDx] = useState(0);
   const start = useRef<{ x: number; y: number; id: number } | null>(null);
@@ -28,7 +25,6 @@ export function TaskRow({
   const dxRef = useRef(0);
   const justSwiped = useRef(false);
 
-  const list = state.lists.find((l) => l.id === task.listId);
   const overdue = isOverdue(task);
   const doneSubs = task.subtasks.filter((s) => s.done).length;
 
@@ -84,12 +80,13 @@ export function TaskRow({
   };
 
   return (
-    <div className="task-row-wrap" style={{ transform: `translateX(${dx}px)` }}>
+    <div className="task-row-wrap">
       <button type="button" className="task-swipe-del" onClick={onDelete} aria-label="删除任务">
         <Trash2 size={19} />
       </button>
       <div
         className={`task-row ${task.done ? 'done' : ''}`}
+        style={{ transform: `translateX(${dx}px)` }}
         role="button"
         tabIndex={0}
         aria-label={`${task.title}${task.done ? '(已完成)' : ''}`}
@@ -108,7 +105,6 @@ export function TaskRow({
         <button
           type="button"
           className={`check ${task.done ? 'checked' : ''}`}
-          style={task.done ? { background: list?.color ?? 'var(--accent)' } : undefined}
           onClick={(e) => {
             e.stopPropagation();
             toggle();
@@ -125,7 +121,6 @@ export function TaskRow({
             task.tags.length > 0 ||
             task.subtasks.length > 0 ||
             task.repeat ||
-            showList ||
             (showSlot && task.slot)) && (
             <div className="task-meta">
               {showSlot && task.slot && (
@@ -164,12 +159,6 @@ export function TaskRow({
                   #{t}
                 </span>
               ))}
-              {showList && list && (
-                <span className="meta-chip list-chip">
-                  <ListIcon name={list.icon} size={12} />
-                  {list.name}
-                </span>
-              )}
             </div>
           )}
         </div>

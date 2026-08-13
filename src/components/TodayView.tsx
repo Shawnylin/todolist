@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Moon, Plus, RotateCcw, Search, Sunrise, Sun } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Moon, Plus, RotateCcw, Search, Sunrise, Sun, X } from 'lucide-react';
 import type { Task, TimeSlot } from '../types';
 import { INBOX_ID } from '../types';
 import { buildTask, sortTasks, useApp } from '../store';
@@ -135,9 +135,6 @@ export function TodayView({ openDetail, openSearch }: Props) {
       <header className="view-header today-header">
         <div className="view-header-text">
           <h1 className="view-title">{title}</h1>
-          {!isTodaySel && (
-            <div className="view-subtitle">查看当天安排,添加的任务会归到这一天</div>
-          )}
         </div>
         <div className="view-header-actions">
           <button
@@ -213,7 +210,7 @@ export function TodayView({ openDetail, openSearch }: Props) {
             </div>
             <div className="task-list">
               {bySlot.none.map((t) => (
-                <TaskRow key={t.id} task={t} showList onOpen={() => openDetail(t.id)} />
+                <TaskRow key={t.id} task={t} onOpen={() => openDetail(t.id)} />
               ))}
             </div>
           </div>
@@ -244,6 +241,7 @@ function SlotSection({
 }) {
   const { state, dispatch } = useApp();
   const { push } = useToast();
+  const [addOpen, setAddOpen] = useState(false);
   const [value, setValue] = useState('');
   const pending = tasks.filter((t) => !t.done).length;
 
@@ -261,6 +259,7 @@ function SlotSection({
     dispatch({ type: 'addTask', task });
     push(`已添加到${SLOT_LABEL[slot]}`);
     setValue('');
+    setAddOpen(false);
   };
 
   return (
@@ -269,30 +268,59 @@ function SlotSection({
         <span className={`slot-icon slot-${slot}`}>{SLOT_ICONS[slot]}</span>
         <span className="slot-label">{SLOT_LABEL[slot]}</span>
         {pending > 0 && <span className="slot-count">{pending}</span>}
-      </div>
-      <div className="slot-add">
-        <span className="slot-add-plus">
-          <Plus size={15} />
-        </span>
-        <input
-          type="text"
-          className="slot-add-input"
-          placeholder={`添加${SLOT_LABEL[slot]}的任务,回车确认`}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-              e.preventDefault();
-              add();
-            }
+        <button
+          type="button"
+          className="slot-plus-btn"
+          onClick={() => {
+            setValue('');
+            setAddOpen(true);
           }}
-        />
+          aria-label={`添加${SLOT_LABEL[slot]}的任务`}
+        >
+          <Plus size={17} />
+        </button>
       </div>
       {tasks.length > 0 && (
         <div className="task-list">
           {tasks.map((t) => (
-            <TaskRow key={t.id} task={t} showList onOpen={() => onOpen(t.id)} />
+            <TaskRow key={t.id} task={t} onOpen={() => onOpen(t.id)} />
           ))}
+        </div>
+      )}
+
+      {addOpen && (
+        <div className="sheet-overlay" onClick={() => setAddOpen(false)}>
+          <div className="sheet add-sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <div className="sheet-header">
+              <div className="sheet-title">
+                {SLOT_ICONS[slot]} 添加到{SLOT_LABEL[slot]}
+              </div>
+              <button type="button" className="icon-btn" onClick={() => setAddOpen(false)} aria-label="关闭">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="sheet-scroll">
+              <div className="add-sheet-date">{formatDue(selectedDate)}</div>
+              <input
+                type="text"
+                className="add-sheet-input"
+                placeholder="输入任务标题"
+                autoFocus
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                    e.preventDefault();
+                    add();
+                  }
+                }}
+              />
+              <button type="button" className="btn btn-primary btn-block" onClick={add}>
+                添加任务
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

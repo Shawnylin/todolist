@@ -78,7 +78,7 @@ export function SearchOverlay({
                 <TaskRow
                   key={t.id}
                   task={t}
-                  showList
+                  showSlot
                   onOpen={() => {
                     onOpenDetail(t.id);
                     onClose();

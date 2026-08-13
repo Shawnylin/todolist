@@ -9,17 +9,23 @@ import {
   Trash2,
   TrendingUp,
 } from 'lucide-react';
-import type { Task, ViewRoute } from '../types';
+import type { Task, TimeSlot, ViewRoute } from '../types';
 import { useApp } from '../store';
 import { addDaysISO, diffDaysISO, parseISODate, todayISO, toISODate } from '../utils/date';
+import { SLOT_LABEL, slotOf } from '../utils/slot';
 import { TaskRow } from './TaskRow';
 import { Empty } from './Empty';
 import { Modal } from './Modal';
-import { ListIcon } from './icons';
 import { useToast } from './Toast';
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 const PRIORITY_COLOR: Record<number, string> = { 1: '#E5484D', 2: '#F76B15', 3: '#2F6FEB' };
+const SLOT_COLOR: Record<string, string> = {
+  morning: '#F76B15',
+  afternoon: '#2F6FEB',
+  evening: '#6E56CF',
+  none: '#9AA0AA',
+};
 
 interface Props {
   navigate: (r: ViewRoute) => void;
@@ -65,17 +71,22 @@ export function InsightsView({ navigate, openDetail }: Props) {
     return n;
   }, [doneDays, today]);
 
-  const listDist = useMemo(() => {
-    const m = new Map<string, { name: string; color: string; icon: string; count: number }>();
+  const slotDist = useMemo(() => {
+    const m = new Map<string, { key: string; label: string; color: string; count: number }>();
     for (const t of pending) {
-      const l = state.lists.find((x) => x.id === t.listId);
-      const key = l?.id ?? 'unknown';
-      const cur = m.get(key) ?? { name: l?.name ?? '未分类', color: l?.color ?? '#5B6472', icon: l?.icon ?? 'inbox', count: 0 };
+      const s: TimeSlot | undefined = slotOf(t);
+      const key = s ?? 'none';
+      const cur = m.get(key) ?? {
+        key,
+        label: s ? SLOT_LABEL[s] : '未安排',
+        color: SLOT_COLOR[key],
+        count: 0,
+      };
       cur.count++;
       m.set(key, cur);
     }
     return [...m.values()].sort((a, b) => b.count - a.count);
-  }, [pending, state.lists]);
+  }, [pending]);
 
   const priorityDist = useMemo(() => {
     const d = [0, 0, 0, 0];
@@ -97,7 +108,6 @@ export function InsightsView({ navigate, openDetail }: Props) {
       <header className="view-header">
         <div className="view-header-text">
           <h1 className="view-title">洞察</h1>
-          <div className="view-subtitle">你的任务完成情况与统计</div>
         </div>
         <div className="view-header-actions">
           <button
@@ -172,9 +182,9 @@ export function InsightsView({ navigate, openDetail }: Props) {
           </section>
 
           <div className="chart-row">
-            {/* 待办清单分布 */}
+            {/* 待办时段分布 */}
             <section className="chart-card half">
-              <div className="chart-card-title">待办清单分布</div>
+              <div className="chart-card-title">待办时段分布</div>
               {pending.length === 0 ? (
                 <p className="chart-empty">暂无待办</p>
               ) : (
@@ -182,14 +192,14 @@ export function InsightsView({ navigate, openDetail }: Props) {
                   <div className="donut-wrap">
                     <svg viewBox="0 0 100 100" className="donut">
                       <circle cx="50" cy="50" r="38" fill="none" stroke="var(--surface-2)" strokeWidth="14" />
-                      {listDist.map((l) => {
+                      {slotDist.map((l) => {
                         const frac = l.count / pending.length;
                         const dash = `${frac * C} ${C}`;
                         const off = -acc * C;
                         acc += frac;
                         return (
                           <circle
-                            key={l.name}
+                            key={l.key}
                             cx="50"
                             cy="50"
                             r="38"
@@ -209,12 +219,10 @@ export function InsightsView({ navigate, openDetail }: Props) {
                     </div>
                   </div>
                   <ul className="donut-legend">
-                    {listDist.slice(0, 5).map((l) => (
-                      <li key={l.name}>
+                    {slotDist.slice(0, 5).map((l) => (
+                      <li key={l.key}>
                         <span className="legend-dot" style={{ background: l.color }} />
-                        <span className="legend-name">
-                          <ListIcon name={l.icon} size={12} /> {l.name}
-                        </span>
+                        <span className="legend-name">{l.label}</span>
                         <span className="legend-count">{l.count}</span>
                       </li>
                     ))}
@@ -267,7 +275,7 @@ export function InsightsView({ navigate, openDetail }: Props) {
             ) : (
               <div className="task-list">
                 {recentDone.map((t) => (
-                  <TaskRow key={t.id} task={t} showList showSlot onOpen={() => openDetail(t.id)} />
+                  <TaskRow key={t.id} task={t} showSlot onOpen={() => openDetail(t.id)} />
                 ))}
               </div>
             )}
@@ -341,7 +349,6 @@ function CompletedSheet({ onClose, onOpen }: { onClose: () => void; onOpen: (id:
                     <TaskRow
                       key={t.id}
                       task={t}
-                      showList
                       showSlot
                       onOpen={() => {
                         onOpen(t.id);

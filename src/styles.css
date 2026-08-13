@@ -286,7 +286,6 @@ textarea::placeholder {
   position: relative;
   border-radius: var(--radius);
   overflow: hidden;
-  transition: transform 0.18s ease;
 }
 
 .task-swipe-del {
@@ -318,6 +317,7 @@ textarea::placeholder {
   -webkit-user-select: none;
   animation: fadeSlideIn 0.22s ease;
   transition:
+    transform 0.18s ease,
     background 0.15s,
     opacity 0.2s;
 }
@@ -1871,41 +1871,54 @@ textarea::placeholder {
   padding: 1px 8px;
 }
 
-.slot-add {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  background: var(--surface);
-  border: 1px dashed var(--border);
-  border-radius: 12px;
-  padding: 8px 12px;
-  margin-bottom: 10px;
-  transition: border-color 0.15s;
-}
-.slot-add:focus-within {
-  border-color: var(--accent);
-  border-style: solid;
-}
-
-.slot-add-plus {
+.slot-plus-btn {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  background: var(--surface-2);
-  color: var(--text-2);
+  background: var(--accent-soft);
+  color: var(--accent);
   flex: none;
+  transition: transform 0.12s;
 }
-.slot-add-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
+.slot-plus-btn:active {
+  transform: scale(0.92);
+}
+
+/* 添加任务弹层 */
+.add-sheet {
+  max-width: 560px;
+}
+.add-sheet-date {
+  font-size: 13px;
+  color: var(--text-2);
+  margin: 4px 0 14px;
+}
+.add-sheet-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 12px 14px;
+  font-size: 15px;
   outline: none;
-  background: transparent;
-  font-size: 14px;
-  padding: 3px 0;
+  margin-bottom: 14px;
+}
+.add-sheet-input:focus {
+  border-color: var(--accent);
+}
+
+/* 设置页返回按钮 */
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.back-btn {
+  margin-left: -6px;
 }
 
 .meta-chip.slot {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { registerSW } from 'virtual:pwa-register';
 import { CalendarDays, CheckCircle2, KeyRound, Sun } from 'lucide-react';
-import type { TaskList, ViewRoute } from './types';
+import type { ViewRoute } from './types';
 import { useApp } from './store';
 import { todayISO } from './utils/date';
 import { Sidebar } from './components/Sidebar';
@@ -9,7 +9,7 @@ import { BottomNav } from './components/BottomNav';
 import { TodayView } from './components/TodayView';
 import { PlanView } from './components/PlanView';
 import { InsightsView } from './components/InsightsView';
-import { SettingsPage, ListEditorModal } from './components/SettingsPage';
+import { SettingsPage } from './components/SettingsPage';
 import { SearchOverlay } from './components/SearchOverlay';
 import { TaskDetailSheet } from './components/TaskDetailSheet';
 import { useToast } from './components/Toast';
@@ -54,7 +54,6 @@ export default function App() {
   const [route, setRoute] = useState<ViewRoute>(() => parseHash());
   const [detailId, setDetailId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [listEditor, setListEditor] = useState<{ list?: TaskList } | null>(null);
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
@@ -91,8 +90,6 @@ export default function App() {
     return state.tasks.filter((t) => !t.done && (!t.due || t.due <= today)).length;
   }, [state.tasks]);
 
-  const openListEditor = (list?: TaskList) => setListEditor(list ? { list } : {});
-
   const onInstall = async () => {
     if (!installEvt) return;
     await installEvt.prompt();
@@ -115,7 +112,7 @@ export default function App() {
           )}
           {route.view === 'settings' && (
             <SettingsPage
-              openListEditor={openListEditor}
+              navigate={navigate}
               installAvailable={!!installEvt}
               onInstall={onInstall}
             />
@@ -129,7 +126,6 @@ export default function App() {
         <SearchOverlay onClose={() => setSearchOpen(false)} onOpenDetail={setDetailId} />
       )}
       {detailId && <TaskDetailSheet taskId={detailId} onClose={() => setDetailId(null)} />}
-      {listEditor && <ListEditorModal list={listEditor.list} onClose={() => setListEditor(null)} />}
 
       {hydrated && !state.settings.onboarded && (
         <WelcomeModal

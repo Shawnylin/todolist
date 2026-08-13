@@ -111,7 +111,6 @@ export function PlanView({ navigate }: Props) {
       <header className="view-header">
         <div className="view-header-text">
           <h1 className="view-title">计划</h1>
-          <div className="view-subtitle">一句话描述今天的安排,AI 帮你拆成任务</div>
         </div>
       </header>
 
@@ -120,7 +119,7 @@ export function PlanView({ navigate }: Props) {
           ref={taRef}
           className="plan-textarea"
           rows={3}
-          placeholder={'例如:\n首先写言语理解,然后写资料分析,然后写政治理论\n或者:上午开会,下午写方案,晚上健身'}
+          placeholder="请输入今日安排"
           value={text}
           onChange={(e) => {
             setText(e.target.value);
@@ -205,18 +204,6 @@ export function PlanView({ navigate }: Props) {
           已添加 {lastAdded} 个任务
           <button type="button" className="link" onClick={() => navigate({ view: 'today' })}>
             去今日查看 <ArrowRight size={13} />
-          </button>
-        </div>
-      )}
-
-      {!busy && !items.length && !lastAdded && (
-        <div className="plan-examples">
-          <div className="plan-examples-title">试试这些说法</div>
-          <button type="button" className="plan-example" onClick={() => setText('首先写言语理解,然后写资料分析,然后写政治理论')}>
-            “首先写言语理解,然后写资料分析,然后写政治理论”
-          </button>
-          <button type="button" className="plan-example" onClick={() => setText('上午写周报,下午3点开会,晚上健身')}>
-            “上午写周报,下午3点开会,晚上健身”
           </button>
         </div>
       )}
