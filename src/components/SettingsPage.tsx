@@ -1,17 +1,16 @@
 import { AnimatePresence } from 'motion/react';
-import { SelectionIndicator } from './Motion';
+import { Expand, SelectionIndicator } from './Motion';
+import { AiSettings } from './AiSettings';
 import { useRef, useState } from 'react';
 import { parseBackup } from '../utils/backup';
 import {
   ArrowLeft,
-  CheckCircle2,
+  BookOpen,
+  Check,
+  ChevronDown,
   Database,
   Download,
-  Eye,
-  EyeOff,
   Info,
-  KeyRound,
-  Loader2,
   Monitor,
   Moon,
   Palette,
@@ -22,7 +21,6 @@ import {
 } from 'lucide-react';
 import type { Settings, Task, TaskList, ViewRoute } from '../types';
 import { INBOX_ID } from '../types';
-import { hasAiKey, testConnection } from '../ai';
 import { useApp } from '../store';
 import { todayISO } from '../utils/date';
 import { useToast } from './Toast';
@@ -37,11 +35,11 @@ interface Props {
 export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
   const { state, dispatch } = useApp();
   const { push } = useToast();
-  const [showKey, setShowKey] = useState(false);
-  const [testState, setTestState] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
-  const [testMsg, setTestMsg] = useState('');
+  const [tutorialOpen, setTutorialOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [pendingImport, setPendingImport] = useState<{ tasks: Task[]; lists: TaskList[] } | null>(null);
+  const [pendingImport, setPendingImport] = useState<{ tasks: Task[]; lists: TaskList[] } | null>(
+    null,
+  );
   const fileRef = useRef<HTMLInputElement>(null);
 
   const s = state.settings;
@@ -49,23 +47,6 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
 
   const back = () => {
     navigate({ view: 'today' });
-  };
-
-  const onTest = async () => {
-    if (!hasAiKey(s)) {
-      push('请先填写 API Key');
-      return;
-    }
-    setTestState('busy');
-    setTestMsg('');
-    try {
-      await testConnection(s);
-      setTestState('ok');
-      setTestMsg('连接成功,API Key 有效');
-    } catch (e) {
-      setTestState('err');
-      setTestMsg(e instanceof Error ? e.message : '连接失败');
-    }
   };
 
   const onExport = () => {
@@ -126,96 +107,7 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
         </div>
       </header>
 
-      {/* AI 助手 */}
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <div className="settings-card-title">
-            <KeyRound size={16} />
-            AI 助手 · DeepSeek
-          </div>
-          <span className={`status-dot ${hasAiKey(s) ? 'on' : ''}`}>
-            <span className="dot" />
-            {hasAiKey(s) ? '已配置' : '未配置'}
-          </span>
-        </div>
-        <p className="settings-card-desc">
-          填写自己的 DeepSeek API Key 后,即可使用「计划」页的连续聊天、计划调整、任务拆解等 AI
-          能力。密钥仅保存在本机浏览器中,直接通过 HTTPS 请求 DeepSeek,不经过任何第三方服务器。
-        </p>
-
-        <label className="field">
-          <span className="field-label">API Key</span>
-          <div className="field-input-wrap">
-            <input
-              className="field-input"
-              type={showKey ? 'text' : 'password'}
-              placeholder="sk-…"
-              autoComplete="off"
-              value={s.apiKey}
-              onChange={(e) => setS({ apiKey: e.target.value.trim() })}
-            />
-            <button
-              type="button"
-              className="field-eye"
-              onClick={() => setShowKey((v) => !v)}
-              aria-label={showKey ? '隐藏' : '显示'}
-            >
-              {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-        </label>
-
-        <label className="field">
-          <span className="field-label">API 地址(可填代理地址)</span>
-          <input
-            className="field-input"
-            type="text"
-            placeholder="https://api.deepseek.com"
-            autoComplete="off"
-            value={s.baseUrl}
-            onChange={(e) => setS({ baseUrl: e.target.value.trim() })}
-          />
-        </label>
-
-        <label className="field">
-          <span className="field-label">模型</span>
-          <input
-            className="field-input"
-            type="text"
-            placeholder="deepseek-v4-flash"
-            autoComplete="off"
-            value={s.model}
-            onChange={(e) => setS({ model: e.target.value.trim() })}
-          />
-        </label>
-
-        <div className="settings-row-actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={onTest}
-            disabled={testState === 'busy'}
-          >
-            {testState === 'busy' ? <Loader2 size={15} className="spin" /> : <CheckCircle2 size={15} />}
-            测试连接
-          </button>
-          <a
-            className="link"
-            href="https://platform.deepseek.com/api_keys"
-            target="_blank"
-            rel="noreferrer"
-          >
-            获取 API Key ↗
-          </a>
-        </div>
-        {testMsg && (
-          <p className={`test-msg ${testState === 'ok' ? 'ok' : 'err'}`}>{testMsg}</p>
-        )}
-        <p className="settings-card-foot">
-          <Info size={13} /> 若浏览器提示跨域(CORS)错误,可填写支持 CORS 的代理地址,或自建
-          Cloudflare Worker 反向代理。
-        </p>
-      </section>
+      <AiSettings />
 
       {/* 外观 */}
       <section className="settings-card">
@@ -225,7 +117,8 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
             外观
           </div>
         </div>
-        <div className="segmented"><SelectionIndicator selector=".seg-btn.active" />
+        <div className="segmented">
+          <SelectionIndicator selector=".seg-btn.active" />
           {(
             [
               { key: 'light', label: '浅色', icon: <Sun size={15} /> },
@@ -244,6 +137,31 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
             </button>
           ))}
         </div>
+        <div className="theme-colors" aria-label="主题色">
+          {(
+            [
+              { key: 'violet', label: '鸢尾紫', color: '#65518f' },
+              { key: 'blue', label: '湖水蓝', color: '#315da8' },
+              { key: 'green', label: '森林绿', color: '#326b4c' },
+              { key: 'rose', label: '蔷薇粉', color: '#984867' },
+              { key: 'amber', label: '琥珀金', color: '#825b12' },
+            ] as const
+          ).map((color) => (
+            <button
+              type="button"
+              key={color.key}
+              aria-label={color.label}
+              aria-pressed={(s.accent ?? 'violet') === color.key}
+              className="theme-color"
+              onClick={() => setS({ accent: color.key })}
+            >
+              <span style={{ background: color.color }}>
+                {(s.accent ?? 'violet') === color.key && <Check size={17} />}
+              </span>
+              <small>{color.label}</small>
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* 数据 */}
@@ -257,23 +175,23 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
         <p className="settings-card-desc">
           所有数据都保存在本机浏览器(IndexedDB)中,离线也能使用。建议定期导出备份。
         </p>
-        <div className="settings-row-actions">
+        <div className="settings-row-actions data-actions">
           <button type="button" className="btn btn-secondary" onClick={onExport}>
-            <Download size={15} /> 导出数据
+            <Download size={15} /> 导出
           </button>
           <button
             type="button"
             className="btn btn-secondary"
             onClick={() => fileRef.current?.click()}
           >
-            <Upload size={15} /> 导入数据
+            <Upload size={15} /> 导入
           </button>
           <button
             type="button"
             className="btn btn-secondary danger-text"
             onClick={() => setConfirmClear(true)}
           >
-            <Trash2 size={15} /> 清空数据
+            <Trash2 size={15} /> 清空
           </button>
           <input
             ref={fileRef}
@@ -289,72 +207,83 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
         </div>
       </section>
 
-      {/* 应用 */}
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <div className="settings-card-title">
-            <Smartphone size={16} />
-            应用
+      <section className="settings-card tutorial-card">
+        <button
+          type="button"
+          className="settings-entry"
+          aria-expanded={tutorialOpen}
+          aria-controls="usage-tutorial"
+          onClick={() => setTutorialOpen((v) => !v)}
+        >
+          <span className="settings-entry-icon">
+            <BookOpen size={21} />
+          </span>
+          <span>
+            <strong>使用教程</strong>
+            <small>安装应用 · 快速录入 · 聊天操作</small>
+          </span>
+          <ChevronDown size={18} className={tutorialOpen ? 'chevron open' : 'chevron'} />
+        </button>
+        <Expand open={tutorialOpen}>
+          <div id="usage-tutorial" className="tutorial-body">
+            <h3>应用</h3>
+            {installAvailable ? (
+              <button type="button" className="btn btn-primary" onClick={onInstall}>
+                <Smartphone size={15} />
+                安装到主屏幕
+              </button>
+            ) : (
+              <p className="settings-card-desc">
+                iPhone：在 Safari 中打开，点击「分享 → 添加到主屏幕」。Chrome /
+                Edge：在浏览器菜单中选择「安装应用」。
+              </p>
+            )}
+            <h3>快速录入技巧</h3>
+            <ul className="tips-list">
+              <li>点击时段的加号添加任务，勾选后任务会平滑移到分组底部。</li>
+              <li>
+                <code>每天 9点 阅读 @学习 p1</code> 可同时设置时间、标签、优先级与重复规则。
+              </li>
+              <li>计划页按回车发送，Shift + 回车换行。中文输入法选词不会误发送。</li>
+              <li>用「新建对话」开始新话题，通过「历史对话」继续以前的聊天；任务列表始终共享。</li>
+              <li>在 AI 配置中保存多套服务，通过圆角勾选框切换当前使用的配置。</li>
+            </ul>
+            <p className="settings-card-foot">
+              <Info size={13} />
+              离线可管理任务；AI 聊天需要网络。模型获取失败时可手动填写模型名称。
+            </p>
           </div>
-        </div>
-        {installAvailable ? (
-          <button type="button" className="btn btn-primary" onClick={onInstall}>
-            <Smartphone size={15} /> 安装到主屏幕
-          </button>
-        ) : (
-          <p className="settings-card-foot">
-            <Info size={13} /> 安装方法:Chrome/Edge 浏览器菜单中选择「安装应用」;iPhone 请用
-            Safari 打开后点击「分享 → 添加到主屏幕」。安装后即可全屏离线使用。
-          </p>
+        </Expand>
+      </section>
+
+      <AnimatePresence>
+        {confirmClear && (
+          <Modal
+            title="清空所有数据?"
+            body="将删除全部任务和聊天记录(API Key 等设置保留),且无法恢复。导出仅备份任务和清单。"
+            confirmLabel="全部清空"
+            danger
+            onCancel={() => setConfirmClear(false)}
+            onConfirm={() => {
+              dispatch({ type: 'wipeData' });
+              push('已清空所有数据');
+              setConfirmClear(false);
+            }}
+          />
         )}
-        <p className="settings-card-foot version">拾光清单 TidyTodo v1.0.0 · PWA</p>
-      </section>
+      </AnimatePresence>
 
-      {/* 使用技巧 */}
-      <section className="settings-card">
-        <div className="settings-card-head">
-          <div className="settings-card-title">快速录入技巧</div>
-        </div>
-        <ul className="tips-list">
-          <li>
-            在「今天」页点时段右侧的 <code>＋</code> 添加任务,完成与撤销也在此页操作
-          </li>
-          <li>
-            在「计划」页和 AI 聊天，直接新增、改期、完成或删除任务，可撤销每次操作
-          </li>
-          <li>
-            <code>每天喝药 @健康</code> 创建带标签的每日重复任务
-          </li>
-          <li>
-            <code>p1</code> 或 <code>！1</code> 设为最高优先级
-          </li>
-        </ul>
-      </section>
-
-      <AnimatePresence>{confirmClear && (
-        <Modal
-          title="清空所有数据?"
-          body="将删除全部任务和聊天记录(API Key 等设置保留),且无法恢复。建议先导出备份。"
-          confirmLabel="全部清空"
-          danger
-          onCancel={() => setConfirmClear(false)}
-          onConfirm={() => {
-            dispatch({ type: 'wipeData' });
-            push('已清空所有数据');
-            setConfirmClear(false);
-          }}
-        />
-      )}</AnimatePresence>
-
-      <AnimatePresence>{pendingImport && (
-        <Modal
-          title="导入数据?"
-          body={`将用备份内容替换当前数据(${pendingImport.tasks.length} 个任务)。`}
-          confirmLabel="导入"
-          onCancel={() => setPendingImport(null)}
-          onConfirm={doImport}
-        />
-      )}</AnimatePresence>
+      <AnimatePresence>
+        {pendingImport && (
+          <Modal
+            title="导入?"
+            body={`将用备份替换任务和清单（${pendingImport.tasks.length} 个任务），并清空全部历史对话。AI 配置保留。`}
+            confirmLabel="导入"
+            onCancel={() => setPendingImport(null)}
+            onConfirm={doImport}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

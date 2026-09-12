@@ -43,6 +43,14 @@ export interface TaskList {
 }
 
 export type ThemeMode = 'light' | 'dark' | 'system';
+export type AccentColor = 'violet' | 'blue' | 'green' | 'rose' | 'amber';
+export interface AiProfile {
+  id: string;
+  name: string;
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+}
 
 export interface Settings {
   apiKey: string;
@@ -51,6 +59,9 @@ export interface Settings {
   theme: ThemeMode;
   /** 是否已看过欢迎引导 */
   onboarded: boolean;
+  accent?: AccentColor;
+  aiProfiles?: AiProfile[];
+  activeAiProfileId?: string;
 }
 
 export interface AppState {
@@ -58,9 +69,22 @@ export interface AppState {
   lists: TaskList[];
   settings: Settings;
   conversation?: ChatMessage[];
+  conversations?: ChatSession[];
+  activeConversationId?: string;
+}
+export interface ChatSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: ChatMessage[];
 }
 
-export interface TaskChange { id: string; before?: Task; after?: Task }
+export interface TaskChange {
+  id: string;
+  before?: Task;
+  after?: Task;
+}
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -131,7 +155,4 @@ export interface AiPlanTask {
 }
 
 export type ViewRoute =
-  | { view: 'today' }
-  | { view: 'plan' }
-  | { view: 'insights' }
-  | { view: 'settings' };
+  { view: 'today' } | { view: 'plan' } | { view: 'insights' } | { view: 'settings' };

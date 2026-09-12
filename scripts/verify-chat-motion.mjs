@@ -13,11 +13,11 @@ await page.locator('[role="dialog"]').waitFor({ state: 'detached' });
 await page.evaluate(async () => {
   const db = await import('/src/db.ts');
   const state = await db.loadAll();
-  state.settings = { ...state.settings, onboarded: true, theme: 'light', apiKey: 'test-only-not-a-real-key', baseUrl: 'https://example.test' };
+  state.settings = { ...state.settings, onboarded: true, theme: 'light', apiKey: 'test-only-not-a-real-key', baseUrl: 'https://example.test', aiProfiles: undefined, activeAiProfileId: undefined };
   await db.saveAll(state);
 });
 let slow = false;
-await page.route('https://example.test/chat/completions', async route => {
+await page.route('https://example.test/v1/chat/completions', async route => {
   const body = route.request().postDataJSON(); requests.push(body);
   const text = body.messages.at(-1).content;
   const taskContext = JSON.parse(body.messages[0].content.split('当前上下文（含本地日期和最新任务）如下：')[1]);

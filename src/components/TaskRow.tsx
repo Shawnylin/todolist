@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { Check, CheckSquare, Clock, Flag, Repeat, Trash2 } from 'lucide-react';
+import { CheckSquare, Clock, Flag, Repeat, Trash2 } from 'lucide-react';
+import { AnimatedCheck, AnimatedTaskTitle } from './AnimatedCheck';
 import type { Task } from '../types';
 import { useApp } from '../store';
 import { formatDueShort, isOverdue, repeatLabel } from '../utils/date';
@@ -36,7 +37,10 @@ export function TaskRow({
   const onDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     dispatch({ type: 'deleteTask', id: task.id });
-    push(`已删除「${task.title}」`, { label: '撤销', fn: () => dispatch({ type: 'undoDelete', id: task.id }) });
+    push(`已删除「${task.title}」`, {
+      label: '撤销',
+      fn: () => dispatch({ type: 'undoDelete', id: task.id }),
+    });
     setDx(0);
   };
 
@@ -85,8 +89,21 @@ export function TaskRow({
   };
 
   return (
-    <motion.div className="task-row-wrap" layout="position" initial={{ opacity: 0, y: reduced ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : 8, height: 0, marginBottom: 0 }} transition={{ duration: reduced ? 0 : .22, ease: [.2, 0, 0, 1] }}>
-      <button type="button" className="task-swipe-del" onClick={onDelete} aria-label="删除任务" tabIndex={dx < 0 ? 0 : -1} aria-hidden={dx >= 0}>
+    <motion.div
+      className="task-row-wrap"
+      initial={{ opacity: 0, y: reduced ? 0 : 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: reduced ? 0 : 8, height: 0, marginBottom: 0 }}
+      transition={{ duration: reduced ? 0 : 0.22, ease: [0.2, 0, 0, 1] }}
+    >
+      <button
+        type="button"
+        className="task-swipe-del"
+        onClick={onDelete}
+        aria-label="删除任务"
+        tabIndex={dx < 0 ? 0 : -1}
+        aria-hidden={dx >= 0}
+      >
         <Trash2 size={15} />
         删除
       </button>
@@ -109,7 +126,13 @@ export function TaskRow({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
-        onPointerCancel={() => { setIsDragging(false); dragging.current = false; start.current = null; dxRef.current = 0; setDx(0); }}
+        onPointerCancel={() => {
+          setIsDragging(false);
+          dragging.current = false;
+          start.current = null;
+          dxRef.current = 0;
+          setDx(0);
+        }}
       >
         <button
           type="button"
@@ -121,11 +144,13 @@ export function TaskRow({
           aria-label={task.done ? '标记为未完成' : '标记为完成'}
           aria-pressed={task.done}
         >
-          {task.done && <Check size={15} strokeWidth={3} />}
+          <AnimatedCheck checked={task.done} />
         </button>
 
         <div className="task-main">
-          <div className="task-title">{task.title}</div>
+          <div className="task-title">
+            <AnimatedTaskTitle checked={task.done} title={task.title} />
+          </div>
           {(task.due ||
             task.dueTime ||
             task.tags.length > 0 ||
@@ -159,7 +184,9 @@ export function TaskRow({
                 </span>
               )}
               {task.subtasks.length > 0 && (
-                <span className={`meta-chip ${doneSubs === task.subtasks.length ? 'subs-done' : ''}`}>
+                <span
+                  className={`meta-chip ${doneSubs === task.subtasks.length ? 'subs-done' : ''}`}
+                >
                   <CheckSquare size={12} />
                   {doneSubs}/{task.subtasks.length} 子任务
                 </span>
@@ -185,7 +212,16 @@ export function TaskRow({
 
 function CalendarIcon() {
   return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
       <rect x="3" y="4" width="18" height="18" rx="2" />
       <line x1="16" y1="2" x2="16" y2="6" />
       <line x1="8" y1="2" x2="8" y2="6" />

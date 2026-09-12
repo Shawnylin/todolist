@@ -1,7 +1,17 @@
 import { AnimatePresence } from 'motion/react';
 import { Overlay, Panel, SelectionIndicator } from './Motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Moon, Plus, RotateCcw, Search, Sunrise, Sun, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Moon,
+  Plus,
+  RotateCcw,
+  Search,
+  Sunrise,
+  Sun,
+  X,
+} from 'lucide-react';
 import type { Task, TimeSlot } from '../types';
 import { INBOX_ID } from '../types';
 import { buildTask, sortTasks, useApp } from '../store';
@@ -9,7 +19,7 @@ import { parseInput } from '../utils/parse';
 import { addDaysISO, formatDue, parseISODate, todayISO, toISODate } from '../utils/date';
 import { SLOT_LABEL, SLOT_ORDER, slotOf } from '../utils/slot';
 import { useToast } from './Toast';
-import { TaskRow } from './TaskRow';
+import { TaskList } from './TaskList';
 import { Empty } from './Empty';
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
@@ -124,18 +134,15 @@ export function TodayView({ openDetail, openSearch }: Props) {
     for (const k of Object.keys(m)) {
       m[k] = [
         ...sortTasks(m[k].filter((t) => !t.done)),
-        ...m[k]
-          .filter((t) => t.done)
-          .sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)),
+        ...m[k].filter((t) => t.done).sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)),
       ];
     }
     return m;
   }, [allTasks]);
 
   const hasAny = allTasks.length > 0;
-  const completed = allTasks.filter((t) => t.done).length;
-  const progress = hasAny ? Math.round(completed / allTasks.length * 100) : 0;
-  const visibleTasks = (tasks: Task[]) => tasks.filter((t) => filter === 'all' || (filter === 'done' ? t.done : !t.done));
+  const visibleTasks = (tasks: Task[]) =>
+    tasks.filter((t) => filter === 'all' || (filter === 'done' ? t.done : !t.done));
   const title = isTodaySel ? '今天' : formatDue(selected, today);
 
   return (
@@ -143,7 +150,6 @@ export function TodayView({ openDetail, openSearch }: Props) {
       <header className="view-header today-header">
         <div className="view-header-text">
           <h1 className="view-title">{title}</h1>
-          <div className="view-subtitle">{selected.replace(/-/g, '.')} · 把时间留给重要的事</div>
         </div>
         <div className="view-header-actions">
           <button
@@ -164,13 +170,12 @@ export function TodayView({ openDetail, openSearch }: Props) {
         </div>
       </header>
 
-      <section className="day-overview" aria-label="当日进度">
-        <div><span className="eyebrow">ONE THING AT A TIME</span><h2>{hasAny && completed === allTasks.length ? '做得好，留一点时间给自己。' : '慢慢来，也在向前。'}</h2><p>{hasAny ? `还有 ${allTasks.length - completed} 件待办，已完成 ${completed} 件` : '从一件小事开始，安排属于你的一天。'}</p></div>
-        <div className="day-progress" role="progressbar" aria-label="任务完成进度" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
-          <svg viewBox="0 0 100 100" aria-hidden="true"><circle className="progress-track" cx="50" cy="50" r="42" /><circle className="progress-value" cx="50" cy="50" r="42" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} /></svg><span>{progress}<small>%</small></span>
-        </div>
-      </section>
-      <div className="calendar-heading"><h2>一周安排</h2><span>{days[0].iso.slice(5).replace('-', '/')} — {days[6].iso.slice(5).replace('-', '/')}</span></div>
+      <div className="calendar-heading">
+        <h2>一周安排</h2>
+        <span>
+          {days[0].iso.slice(5).replace('-', '/')} — {days[6].iso.slice(5).replace('-', '/')}
+        </span>
+      </div>
 
       {/* 周历条:周日-周六,可点击选日期,左右滑动换周 */}
       <div
@@ -178,12 +183,19 @@ export function TodayView({ openDetail, openSearch }: Props) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => { swipeStart.current = null; swiping.current = false; justSwiped.current = false; }}
+        onPointerCancel={() => {
+          swipeStart.current = null;
+          swiping.current = false;
+          justSwiped.current = false;
+        }}
       >
         <button type="button" className="week-nav" onClick={() => goWeek(-1)} aria-label="上一周">
           <ChevronLeft size={16} />
         </button>
-        <div className="week-days" onClick={() => justSwiped.current && (justSwiped.current = false)}>
+        <div
+          className="week-days"
+          onClick={() => justSwiped.current && (justSwiped.current = false)}
+        >
           <SelectionIndicator selector=".week-day.sel" />
           {days.map((d) => (
             <button
@@ -212,7 +224,31 @@ export function TodayView({ openDetail, openSearch }: Props) {
       </div>
 
       <div className="view-body">
-        <div className="day-toolbar"><h2>我的日程 <span>{allTasks.length}</span></h2><div className="day-filters" aria-label="任务状态筛选"><SelectionIndicator selector="button.active" />{([{ key: 'all', label: '全部' }, { key: 'pending', label: '待办' }, { key: 'done', label: '已完成' }] as const).map((item) => <button type="button" key={item.key} aria-pressed={filter === item.key} className={filter === item.key ? 'active' : ''} onClick={() => setFilter(item.key)}>{item.label}</button>)}</div></div>
+        <div className="day-toolbar">
+          <h2>
+            我的日程 <span>{allTasks.length}</span>
+          </h2>
+          <div className="day-filters" aria-label="任务状态筛选">
+            <SelectionIndicator selector="button.active" />
+            {(
+              [
+                { key: 'all', label: '全部' },
+                { key: 'pending', label: '待办' },
+                { key: 'done', label: '已完成' },
+              ] as const
+            ).map((item) => (
+              <button
+                type="button"
+                key={item.key}
+                aria-pressed={filter === item.key}
+                className={filter === item.key ? 'active' : ''}
+                onClick={() => setFilter(item.key)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {SLOT_ORDER.map((slot) => (
           <SlotSection
             key={slot}
@@ -229,11 +265,7 @@ export function TodayView({ openDetail, openSearch }: Props) {
               <span className="section-label">未安排</span>
               <span className="section-count">{bySlot.none.length}</span>
             </div>
-            <div className="task-list">
-              {visibleTasks(bySlot.none).map((t) => (
-                <TaskRow key={t.id} task={t} onOpen={() => openDetail(t.id)} />
-              ))}
-            </div>
+            <TaskList tasks={visibleTasks(bySlot.none)} onOpen={openDetail} />
           </div>
         )}
 
@@ -267,7 +299,9 @@ function SlotSection({
   const pending = tasks.filter((t) => !t.done).length;
   useEffect(() => {
     if (!addOpen) return;
-    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setAddOpen(false); };
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setAddOpen(false);
+    };
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
   }, [addOpen]);
@@ -294,7 +328,13 @@ function SlotSection({
       <div className="slot-head">
         <span className={`slot-icon slot-${slot}`}>{SLOT_ICONS[slot]}</span>
         <span className="slot-label">{SLOT_LABEL[slot]}</span>
-        <span className="slot-time">{slot === 'morning' ? '开启新的一天' : slot === 'afternoon' ? '留一段专注时间' : '收获与放松'}</span>
+        <span className="slot-time">
+          {slot === 'morning'
+            ? '开启新的一天'
+            : slot === 'afternoon'
+              ? '留一段专注时间'
+              : '收获与放松'}
+        </span>
         {pending > 0 && <span className="slot-count">{pending}</span>}
         <button
           type="button"
@@ -308,50 +348,62 @@ function SlotSection({
           <Plus size={17} />
         </button>
       </div>
-      {tasks.length === 0 && <button type="button" className="slot-empty" onClick={() => setAddOpen(true)}><Plus size={16} /> 留白也很好，或添加一件事</button>}
-      <div className="task-list"><AnimatePresence initial={false}>
-          {tasks.map((t) => (
-            <TaskRow key={t.id} task={t} onOpen={() => onOpen(t.id)} />
-          ))}
-        </AnimatePresence></div>
+      {tasks.length === 0 && (
+        <button type="button" className="slot-empty" onClick={() => setAddOpen(true)}>
+          <Plus size={16} /> 留白也很好，或添加一件事
+        </button>
+      )}
+      <TaskList tasks={tasks} onOpen={onOpen} />
 
-      <AnimatePresence>{addOpen && (
-        <Overlay className="sheet-overlay" onClick={() => setAddOpen(false)}>
-          <Panel className="sheet add-sheet" label={`添加到${SLOT_LABEL[slot]}`}>
-            <div className="sheet-handle" />
-            <div className="sheet-header">
-              <div className="sheet-title">
-                {SLOT_ICONS[slot]} 添加到{SLOT_LABEL[slot]}
+      <AnimatePresence>
+        {addOpen && (
+          <Overlay className="sheet-overlay" onClick={() => setAddOpen(false)}>
+            <Panel className="sheet add-sheet" label={`添加到${SLOT_LABEL[slot]}`}>
+              <div className="sheet-handle" />
+              <div className="sheet-header">
+                <div className="sheet-title">
+                  {SLOT_ICONS[slot]} 添加到{SLOT_LABEL[slot]}
+                </div>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => setAddOpen(false)}
+                  aria-label="关闭"
+                >
+                  <X size={18} />
+                </button>
               </div>
-              <button type="button" className="icon-btn" onClick={() => setAddOpen(false)} aria-label="关闭">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="sheet-scroll">
-              <div className="add-sheet-date">{formatDue(selectedDate)}</div>
-              <input
-                type="text"
-                className="add-sheet-input"
-                placeholder="输入任务标题"
-                aria-label="任务标题"
-                autoFocus
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                    e.preventDefault();
-                    add();
-                  }
-                }}
-              />
-              <p className="input-hint">支持「明天 9点 开会 p1」「每天 阅读 @学习」</p>
-              <button type="button" className="btn btn-primary btn-block" disabled={!value.trim()} onClick={add}>
-                添加任务
-              </button>
-            </div>
-          </Panel>
-        </Overlay>
-      )}</AnimatePresence>
+              <div className="sheet-scroll">
+                <div className="add-sheet-date">{formatDue(selectedDate)}</div>
+                <input
+                  type="text"
+                  className="add-sheet-input"
+                  placeholder="输入任务标题"
+                  aria-label="任务标题"
+                  autoFocus
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                      e.preventDefault();
+                      add();
+                    }
+                  }}
+                />
+                <p className="input-hint">支持「明天 9点 开会 p1」「每天 阅读 @学习」</p>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-block"
+                  disabled={!value.trim()}
+                  onClick={add}
+                >
+                  添加任务
+                </button>
+              </div>
+            </Panel>
+          </Overlay>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

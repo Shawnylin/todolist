@@ -5,6 +5,8 @@ import {
   CalendarDays,
   Check,
   KeyRound,
+  History,
+  X,
   MessageCircle,
   Plus,
   RotateCcw,
@@ -20,6 +22,7 @@ import { requestPlanReply, planChanges } from '../utils/planChat';
 import { SLOT_LABEL } from '../utils/slot';
 import { Modal } from './Modal';
 import { TaskRow } from './TaskRow';
+import { Overlay, Panel } from './Motion';
 
 export function PlanView({
   navigate,
@@ -34,10 +37,13 @@ export function PlanView({
   const [busy, setBusy] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const request = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const firstScroll = useRef(true);
+  const composing = useRef(false);
+  const allowLineBreak = useRef(false);
   const reduced = useReducedMotion();
   const present = useIsPresent();
   const hasKey = hasAiKey(state.settings);
@@ -75,7 +81,7 @@ export function PlanView({
       behavior: reduced || firstScroll.current ? 'instant' : 'smooth',
     });
     firstScroll.current = false;
-  }, [messages.length, busy, reduced]);
+  }, [messages.length, busy, reduced, state.activeConversationId]);
 
   const send = async (retryText?: string) => {
     const raw = (retryText ?? text).trim();
@@ -83,18 +89,20 @@ export function PlanView({
     const controller = new AbortController();
     request.current = controller;
     const snapshot = state;
-    dispatch({ type: 'chatMessage', message: message(raw, 'user') });
+    const sessionId = state.activeConversationId;
+    dispatch({ type: 'chatMessage', sessionId, message: message(raw, 'user') });
     setText('');
     setBusy(true);
     try {
       const result = await requestPlanReply(snapshot, messages, raw, controller.signal);
       if (controller.signal.aborted) return;
       const changes = planChanges(snapshot, result.operations);
-      dispatch({ type: 'applyPlan', changes, message: message(result.reply) });
+      dispatch({ type: 'applyPlan', sessionId, changes, message: message(result.reply) });
     } catch (error) {
       if (controller.signal.aborted) return;
       dispatch({
         type: 'chatMessage',
+        sessionId,
         message: {
           ...message(error instanceof Error ? error.message : '暂时无法连接 AI，请重试。'),
           status: 'error',
@@ -104,23 +112,94 @@ export function PlanView({
       if (request.current === controller) {
         request.current = null;
         setBusy(false);
-        inputRef.current?.focus();
+        if (window.matchMedia('(min-width: 960px)').matches)
+          inputRef.current?.focus({ preventScroll: true });
       }
     }
   };
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  useEffect(() => {
+    const input = inputRef.current;
+    const beforeInput = (event: InputEvent) => {
+      if (event.inputType !== 'insertLineBreak' || event.isComposing || composing.current) return;
+      if (allowLineBreak.current) {
+        allowLineBreak.current = false;
+        return;
+      }
+      event.preventDefault();
+      void sendRef.current();
+    };
+    input?.addEventListener('beforeinput', beforeInput);
+    return () => input?.removeEventListener('beforeinput', beforeInput);
+  }, []);
   const cancel = () => {
     stop();
     dispatch({ type: 'chatMessage', message: message('已停止，本次没有修改计划。') });
   };
+
+  const newConversation = () => {
+    if (request.current) cancel();
+    const now = Date.now();
+    dispatch({
+      type: 'newConversation',
+      session: { id: uid(), title: '新对话', messages: [], createdAt: now, updatedAt: now },
+    });
+    firstScroll.current = true;
+    setText('');
+    setHistoryOpen(false);
+  };
+  const selectConversation = (id: string) => {
+    if (request.current) cancel();
+    firstScroll.current = true;
+    setText('');
+    dispatch({ type: 'selectConversation', id });
+    setHistoryOpen(false);
+  };
+  useEffect(() => {
+    if (!state.activeConversationId) {
+      const now = Date.now();
+      dispatch({
+        type: 'newConversation',
+        session: { id: uid(), title: '新对话', messages: [], createdAt: now, updatedAt: now },
+      });
+    }
+  }, [state.activeConversationId, dispatch]);
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    if (input) {
+      input.style.height = 'auto';
+      input.style.height = `${Math.min(104, Math.max(28, input.scrollHeight))}px`;
+    }
+  }, [text]);
 
   return (
     <div className="plan-chat-page">
       <header className="view-header">
         <div>
           <h1 className="view-title">计划</h1>
-          <div className="view-subtitle">聊聊想做的事，接下来的安排交给我。</div>
+          <div className="view-subtitle conversation-title">
+            {state.conversations?.find((c) => c.id === state.activeConversationId)?.title ||
+              '新对话'}
+          </div>
         </div>
         <div className="view-header-actions">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="历史对话"
+            onClick={() => setHistoryOpen(true)}
+          >
+            <History size={18} />
+          </button>
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="新建对话"
+            onClick={newConversation}
+          >
+            <Plus size={20} />
+          </button>
           <button
             className="icon-btn plan-list-toggle"
             aria-label="查看计划列表"
@@ -165,7 +244,8 @@ export function PlanView({
                       key={prompt}
                       onClick={() => {
                         setText(prompt);
-                        inputRef.current?.focus();
+                        if (window.matchMedia('(min-width: 960px)').matches)
+                          inputRef.current?.focus({ preventScroll: true });
                       }}
                     >
                       <MessageCircle size={16} />
@@ -175,7 +255,7 @@ export function PlanView({
                 </div>
               </div>
             )}
-            <AnimatePresence initial={false}>
+            <AnimatePresence initial={false} key={state.activeConversationId}>
               {messages.map((item, index) => (
                 <motion.article
                   key={item.id}
@@ -278,19 +358,28 @@ export function PlanView({
           >
             <textarea
               ref={inputRef}
-              rows={2}
+              rows={1}
+              enterKeyHint="send"
               aria-label="发送给计划助手"
               placeholder={hasKey ? '说说你的安排，或让我调整已有任务…' : '先在设置中连接 AI 助手'}
               value={text}
               maxLength={6000}
               disabled={!hasKey}
+              onCompositionStart={() => {
+                composing.current = true;
+              }}
+              onCompositionEnd={() => {
+                composing.current = false;
+              }}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => {
+                if (e.key === 'Enter') allowLineBreak.current = e.shiftKey;
                 if (
                   e.key === 'Enter' &&
                   !e.shiftKey &&
+                  !composing.current &&
                   !e.nativeEvent.isComposing &&
-                  window.matchMedia('(min-width: 960px)').matches
+                  e.nativeEvent.keyCode !== 229
                 ) {
                   e.preventDefault();
                   void send();
@@ -298,9 +387,6 @@ export function PlanView({
               }}
             />
             <div className="composer-bottom">
-              <span>
-                {busy ? '操作完成后会同步到计划列表' : '可新增、改期、完成或删除 · 操作可撤销'}
-              </span>
               {busy ? (
                 <button type="button" className="chat-send" aria-label="停止生成" onClick={cancel}>
                   <Square size={17} fill="currentColor" />
@@ -317,9 +403,6 @@ export function PlanView({
               )}
             </div>
           </form>
-          <p className="chat-footnote">
-            聊天记录保存在本机；发送时会携带近期对话和当前任务给设置中的 AI 服务。
-          </p>
         </section>
         <aside className="chat-plan-list">
           <div className="chat-plan-head">
@@ -347,11 +430,62 @@ export function PlanView({
         </aside>
       </div>
       <AnimatePresence>
+        {historyOpen && (
+          <Overlay className="sheet-overlay" onClick={() => setHistoryOpen(false)}>
+            <Panel className="sheet history-sheet" label="历史对话">
+              <div className="sheet-header">
+                <h2 className="sheet-title">历史对话</h2>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  aria-label="关闭历史对话"
+                  onClick={() => setHistoryOpen(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="sheet-scroll">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-block"
+                  onClick={newConversation}
+                >
+                  <Plus size={16} />
+                  新建对话
+                </button>
+                <p className="settings-card-desc">每个对话独立保留上下文，任务列表共享。</p>
+                <div className="conversation-list">
+                  {[...(state.conversations ?? [])]
+                    .sort((a, b) => b.updatedAt - a.updatedAt)
+                    .map((session) => (
+                      <button
+                        type="button"
+                        key={session.id}
+                        aria-pressed={state.activeConversationId === session.id}
+                        onClick={() => selectConversation(session.id)}
+                      >
+                        <span>
+                          <strong>{session.title}</strong>
+                          <small>
+                            {session.messages.length} 条消息 ·{' '}
+                            {new Date(session.updatedAt).toLocaleDateString('zh-CN')}
+                          </small>
+                        </span>
+                        {state.activeConversationId === session.id && <Check size={17} />}
+                      </button>
+                    ))}
+                </div>
+              </div>
+            </Panel>
+          </Overlay>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
         {clearOpen && (
           <Modal
             key="clear-chat"
-            title="清空聊天记录？"
-            body="聊天记录与操作回执将清除，已安排的任务会保留。"
+            title="清空当前对话？"
+            body="只清空当前对话，其他历史对话和已安排的任务保留。"
             onCancel={() => setClearOpen(false)}
             onConfirm={() => {
               dispatch({ type: 'clearChat' });

@@ -1,5 +1,6 @@
 import type { AiPlanTask, Priority, Settings, Task, TimeSlot } from './types';
 import { SLOT_ORDER } from './utils/slot';
+import { activeAi } from './utils/preferences';
 
 export class AiError extends Error {
   status?: number;
@@ -10,27 +11,41 @@ export class AiError extends Error {
 }
 
 export function hasAiKey(s: Settings): boolean {
-  return !!s.apiKey.trim();
+  return !!activeAi(s).apiKey.trim();
 }
 
 function friendlyStatus(status: number): string {
   switch (status) {
     case 401:
-      return 'API Key 无效或未填写,请到「设置 → AI 助手」检查';
+      return 'API Key 无效或未填写,请到「设置 → AI 配置」检查';
     case 402:
-      return 'DeepSeek 账户余额不足,请前往 platform.deepseek.com 充值';
+      return 'AI 服务账户余额不足，请检查服务商账户';
     case 429:
       return '请求过于频繁,请稍后再试';
     case 500:
     case 502:
     case 503:
-      return 'DeepSeek 服务暂时不可用,请稍后再试';
+      return 'AI 服务暂时不可用，请稍后再试';
     default:
       return `请求失败(HTTP ${status})`;
   }
 }
 
-const baseOf = (cfg: Settings) => cfg.baseUrl.trim().replace(/\/+$/, '');
+export function apiEndpoint(base: string, endpoint: 'models' | 'chat/completions'): string {
+  let url: URL;
+  try {
+    url = new URL(base.trim());
+  } catch {
+    throw new AiError('请输入完整的 API 地址，例如 https://api.openai.com/v1');
+  }
+  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
+    throw new AiError('API 地址必须是 HTTP(S) 地址，密钥请填写在 API Key 中');
+  let path = url.pathname.replace(/\/+$/, '').replace(/\/(chat\/completions|models)$/, '');
+  if (!path && url.hostname !== 'api.deepseek.com') path = '/v1';
+  url.pathname = `${path}/${endpoint}`;
+  url.hash = '';
+  return url.toString();
+}
 
 interface ChatOpts {
   maxTokens?: number;
@@ -45,20 +60,22 @@ export async function chat(
   user: string,
   opts: ChatOpts = {},
 ): Promise<string> {
+  cfg = { ...cfg, ...activeAi(cfg) };
+  if (!cfg.model.trim()) throw new AiError('请先在「设置 → AI 配置」选择或填写模型名称。');
   const controller = new AbortController();
   const cancel = () => controller.abort();
   opts.signal?.addEventListener('abort', cancel, { once: true });
   if (opts.signal?.aborted) controller.abort();
   const timer = setTimeout(() => controller.abort(), 45000);
   try {
-    const res = await fetch(`${baseOf(cfg)}/chat/completions`, {
+    const res = await fetch(apiEndpoint(cfg.baseUrl, 'chat/completions'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${cfg.apiKey.trim()}`,
       },
       body: JSON.stringify({
-        model: cfg.model.trim() || 'deepseek-v4-flash',
+        model: cfg.model.trim(),
         messages: [
           { role: 'system', content: system },
           ...(opts.history ?? []),
@@ -92,7 +109,9 @@ export async function chat(
       throw new AiError('请求超时,请稍后重试或更换 API 地址');
     }
     if (e instanceof TypeError) {
-      throw new AiError('网络请求失败:可能是网络问题、跨域(CORS)限制或 API 地址不正确,可尝试在设置中更换 API 地址');
+      throw new AiError(
+        '网络请求失败:可能是网络问题、跨域(CORS)限制或 API 地址不正确,可尝试在设置中更换 API 地址',
+      );
     }
     throw new AiError(`请求失败:${String(e)}`);
   } finally {
@@ -139,19 +158,21 @@ export async function aiParseTasks(cfg: Settings, text: string): Promise<AiPlanT
     const o = it as Record<string, unknown>;
     const title = typeof o.title === 'string' ? o.title.trim().slice(0, 40) : '';
     if (!title) continue;
-    let slot = (o.slot === 'morning' || o.slot === 'afternoon' || o.slot === 'evening'
-      ? o.slot
-      : undefined) as TimeSlot | undefined;
+    let slot = (
+      o.slot === 'morning' || o.slot === 'afternoon' || o.slot === 'evening' ? o.slot : undefined
+    ) as TimeSlot | undefined;
     if (!slot) slot = SLOT_ORDER[auto % SLOT_ORDER.length];
     auto++;
     const p = Number(o.priority);
     out.push({
       title,
       slot,
-      dueTime: typeof o.dueTime === 'string' && /^\d{2}:\d{2}$/.test(o.dueTime) ? o.dueTime : undefined,
+      dueTime:
+        typeof o.dueTime === 'string' && /^\d{2}:\d{2}$/.test(o.dueTime) ? o.dueTime : undefined,
       priority: p >= 1 && p <= 3 ? (p as Priority) : 0,
       listName: typeof o.listName === 'string' && o.listName.trim() ? o.listName.trim() : undefined,
-      notes: typeof o.notes === 'string' && o.notes.trim() ? o.notes.trim().slice(0, 200) : undefined,
+      notes:
+        typeof o.notes === 'string' && o.notes.trim() ? o.notes.trim().slice(0, 200) : undefined,
     });
     if (out.length >= 8) break;
   }
@@ -195,26 +216,44 @@ export async function aiBreakdown(cfg: Settings, task: Task): Promise<string[]> 
   return subs.slice(0, 10);
 }
 
-export async function testConnection(cfg: Settings): Promise<void> {
+export async function fetchModels(cfg: Settings, signal?: AbortSignal): Promise<string[]> {
+  const profile = activeAi(cfg);
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
+  const cancel = () => controller.abort();
+  signal?.addEventListener('abort', cancel, { once: true });
+  if (signal?.aborted) controller.abort();
+  const timer = setTimeout(cancel, 20000);
   try {
-    const res = await fetch(`${baseOf(cfg)}/models`, {
-      headers: { Authorization: `Bearer ${cfg.apiKey.trim()}` },
+    const res = await fetch(apiEndpoint(profile.baseUrl, 'models'), {
+      headers: { Authorization: `Bearer ${profile.apiKey.trim()}` },
       signal: controller.signal,
     });
-    if (res.ok) return;
-    throw new AiError(friendlyStatus(res.status), res.status);
+    if (!res.ok) throw new AiError(friendlyStatus(res.status), res.status);
+    const body: unknown = await res.json();
+    const data = body && typeof body === 'object' && 'data' in body ? body.data : undefined;
+    if (!Array.isArray(data)) throw new AiError('服务未返回兼容的模型列表，请手动填写模型名称');
+    const models = [
+      ...new Set(
+        data.flatMap((item: unknown) =>
+          item && typeof item === 'object' && 'id' in item && typeof item.id === 'string'
+            ? [item.id]
+            : [],
+        ),
+      ),
+    ].sort();
+    if (!models.length) throw new AiError('模型列表为空，可以手动填写模型名称');
+    return models;
   } catch (e) {
     if (e instanceof AiError) throw e;
-    if (e instanceof DOMException && e.name === 'AbortError') {
-      throw new AiError('连接超时,请检查网络或 API 地址');
-    }
-    if (e instanceof TypeError) {
-      throw new AiError('网络请求失败:可能是网络问题、跨域(CORS)限制或 API 地址不正确');
-    }
-    throw new AiError(`连接失败:${String(e)}`);
+    if (controller.signal.aborted)
+      throw new AiError(signal?.aborted ? '已取消获取模型' : '获取模型超时，请稍后重试');
+    throw new AiError('获取模型失败，请检查地址、密钥和服务的跨域设置，也可手动填写模型');
   } finally {
     clearTimeout(timer);
+    signal?.removeEventListener('abort', cancel);
   }
+}
+
+export async function testConnection(cfg: Settings): Promise<void> {
+  await fetchModels(cfg);
 }

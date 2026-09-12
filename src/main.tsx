@@ -6,6 +6,7 @@ import { StoreProvider } from './store';
 import { ToastProvider } from './components/Toast';
 import './styles.css';
 import './expressive.css';
+import './preferences.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

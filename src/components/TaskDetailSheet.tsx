@@ -1,3 +1,4 @@
+import { AnimatedCheck } from './AnimatedCheck';
 import { Expand, Overlay, Panel, SelectionIndicator } from './Motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -112,7 +113,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
             onClick={toggleDone}
             aria-label={task.done ? '标记为未完成' : '标记为完成'}
           >
-            {task.done && <Check size={17} strokeWidth={3} />}
+            <AnimatedCheck checked={task.done} />
           </button>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="关闭">
             <X size={18} />

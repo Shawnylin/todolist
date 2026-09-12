@@ -17,7 +17,13 @@ export function BottomNav({
     active: boolean;
     onClick: () => void;
   }> = [
-    { key: 'settings', label: '设置', icon: <Settings size={21} />, active: route.view === 'settings', onClick: () => navigate({ view: 'settings' }) },
+    {
+      key: 'settings',
+      label: '设置',
+      icon: <Settings size={21} />,
+      active: route.view === 'settings',
+      onClick: () => navigate({ view: 'settings' }),
+    },
     {
       key: 'today',
       label: '今天',
@@ -42,7 +48,7 @@ export function BottomNav({
   ];
   return (
     <nav className="bottom-nav">
-      <SelectionIndicator selector=".bottom-nav-item.active svg" />
+      <SelectionIndicator selector=".bottom-nav-item.active" />
       {[...items.slice(1), items[0]].map((it) => (
         <button
           type="button"

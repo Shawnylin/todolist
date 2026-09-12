@@ -1,3 +1,4 @@
+import { DayOverview } from './DayOverview';
 import { AnimatePresence } from 'motion/react';
 import { Overlay, Panel } from './Motion';
 import { useMemo, useState } from 'react';
@@ -123,6 +124,7 @@ export function InsightsView({ navigate, openDetail }: Props) {
           </button>
         </div>
       </header>
+      <DayOverview />
 
       {total === 0 ? (
         <Empty

@@ -17,6 +17,7 @@ import { TaskDetailSheet } from './components/TaskDetailSheet';
 import { useToast } from './components/Toast';
 import { AppLogo } from './components/icons';
 import { DialogAccessibility } from './components/DialogAccessibility';
+import { Viewport } from './components/Viewport';
 
 function parseHash(): ViewRoute {
   const h = location.hash.replace(/^#\/?/, '');
@@ -117,6 +118,7 @@ export default function App() {
   return (
     <div className="app">
       <DialogAccessibility />
+      <Viewport />
       <Sidebar route={route} navigate={navigate} todayCount={todayCount} />
 
       <main className="main">
