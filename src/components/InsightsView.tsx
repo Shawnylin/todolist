@@ -1,3 +1,5 @@
+import { AnimatePresence } from 'motion/react';
+import { Overlay, Panel } from './Motion';
 import { useMemo, useState } from 'react';
 import {
   BarChart3,
@@ -283,7 +285,7 @@ export function InsightsView({ navigate, openDetail }: Props) {
         </div>
       )}
 
-      {sheetOpen && <CompletedSheet onClose={() => setSheetOpen(false)} onOpen={openDetail} />}
+      <AnimatePresence>{sheetOpen && <CompletedSheet onClose={() => setSheetOpen(false)} onOpen={openDetail} />}</AnimatePresence>
     </div>
   );
 }
@@ -318,8 +320,8 @@ function CompletedSheet({ onClose, onOpen }: { onClose: () => void; onOpen: (id:
   }, [state.tasks, today]);
 
   return (
-    <div className="sheet-overlay" onClick={onClose}>
-      <div className="sheet completed-sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+    <Overlay className="sheet-overlay" onClick={onClose}>
+      <Panel className="sheet completed-sheet" label="已完成任务">
         <div className="sheet-handle" />
         <div className="sheet-header">
           <div className="sheet-title">已完成</div>
@@ -361,8 +363,8 @@ function CompletedSheet({ onClose, onOpen }: { onClose: () => void; onOpen: (id:
             ))
           )}
         </div>
-      </div>
-      {confirmClear && (
+      </Panel>
+      <AnimatePresence>{confirmClear && (
         <Modal
           title="清空所有已完成任务?"
           body="将永久删除全部已完成任务,无法撤销。"
@@ -377,7 +379,7 @@ function CompletedSheet({ onClose, onOpen }: { onClose: () => void; onOpen: (id:
             setConfirmClear(false);
           }}
         />
-      )}
-    </div>
+      )}</AnimatePresence>
+    </Overlay>
   );
 }

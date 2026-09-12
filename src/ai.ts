@@ -35,6 +35,8 @@ const baseOf = (cfg: Settings) => cfg.baseUrl.trim().replace(/\/+$/, '');
 interface ChatOpts {
   maxTokens?: number;
   temperature?: number;
+  signal?: AbortSignal;
+  history?: { role: 'user' | 'assistant'; content: string }[];
 }
 
 export async function chat(
@@ -44,6 +46,9 @@ export async function chat(
   opts: ChatOpts = {},
 ): Promise<string> {
   const controller = new AbortController();
+  const cancel = () => controller.abort();
+  opts.signal?.addEventListener('abort', cancel, { once: true });
+  if (opts.signal?.aborted) controller.abort();
   const timer = setTimeout(() => controller.abort(), 45000);
   try {
     const res = await fetch(`${baseOf(cfg)}/chat/completions`, {
@@ -56,6 +61,7 @@ export async function chat(
         model: cfg.model.trim() || 'deepseek-v4-flash',
         messages: [
           { role: 'system', content: system },
+          ...(opts.history ?? []),
           { role: 'user', content: user },
         ],
         temperature: opts.temperature ?? 0.3,
@@ -91,6 +97,7 @@ export async function chat(
     throw new AiError(`请求失败:${String(e)}`);
   } finally {
     clearTimeout(timer);
+    opts.signal?.removeEventListener('abort', cancel);
   }
 }
 

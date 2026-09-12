@@ -1,6 +1,7 @@
-import { BarChart3, Sparkles, Sun } from 'lucide-react';
+import { BarChart3, Settings, Sparkles, Sun } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { ViewRoute } from '../types';
+import { SelectionIndicator } from './Motion';
 
 export function BottomNav({
   route,
@@ -16,6 +17,7 @@ export function BottomNav({
     active: boolean;
     onClick: () => void;
   }> = [
+    { key: 'settings', label: '设置', icon: <Settings size={21} />, active: route.view === 'settings', onClick: () => navigate({ view: 'settings' }) },
     {
       key: 'today',
       label: '今天',
@@ -40,10 +42,12 @@ export function BottomNav({
   ];
   return (
     <nav className="bottom-nav">
-      {items.map((it) => (
+      <SelectionIndicator selector=".bottom-nav-item.active svg" />
+      {[...items.slice(1), items[0]].map((it) => (
         <button
           type="button"
           key={it.key}
+          aria-current={it.active ? 'page' : undefined}
           className={`bottom-nav-item ${it.active ? 'active' : ''}`}
           onClick={it.onClick}
         >

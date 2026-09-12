@@ -1,3 +1,4 @@
+import { Expand, Overlay, Panel, SelectionIndicator } from './Motion';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Calendar,
@@ -26,7 +27,11 @@ const PRIORITY_COLOR: Record<number, string> = { 1: '#E5484D', 2: '#F76B15', 3: 
 export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: () => void }) {
   const { state, dispatch } = useApp();
   const { push } = useToast();
-  const task = state.tasks.find((t) => t.id === taskId);
+  const currentTask = state.tasks.find((t) => t.id === taskId);
+  const lastTask = useRef(currentTask);
+  if (currentTask) lastTask.current = currentTask;
+  const task = currentTask ?? lastTask.current;
+  useEffect(() => { if (!currentTask) onClose(); }, [currentTask, onClose]);
 
   const [calOpen, setCalOpen] = useState(false);
   const [repeatOpen, setRepeatOpen] = useState(false);
@@ -68,7 +73,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
     dispatch({ type: 'deleteTask', id: task.id });
     push(`已删除「${task.title}」`, {
       label: '撤销',
-      fn: () => dispatch({ type: 'undoDelete' }),
+      fn: () => dispatch({ type: 'undoDelete', id: task.id }),
     });
     onClose();
   };
@@ -84,7 +89,8 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
       const fresh = subs.map((t) => ({ id: uid(), title: t, done: false }));
       // 基于最新状态追加,避免覆盖等待期间用户对子任务的操作
       const current = stateRef.current.tasks.find((t) => t.id === taskId);
-      const existing = current ? current.subtasks.filter((s) => !s.done) : [];
+      if (!current) return;
+      const existing = current.subtasks;
       patch({ subtasks: [...existing, ...fresh] });
       push(`AI 已添加 ${subs.length} 个子任务`);
     } catch (e) {
@@ -95,14 +101,8 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
   };
 
   return (
-    <div className="sheet-overlay" onClick={onClose}>
-      <div
-        className="sheet task-detail"
-        role="dialog"
-        aria-modal="true"
-        aria-label="任务详情"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Overlay className="sheet-overlay" onClick={onClose}>
+      <Panel className="sheet task-detail" label="任务详情">
         <div className="sheet-handle" />
         <div className="sheet-header">
           <button
@@ -147,7 +147,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
               </span>
               <ChevronDown size={15} className="meta-row-chev" />
             </button>
-            {calOpen && (
+            <Expand open={calOpen}>
               <CalendarPanel
                 value={task.due}
                 onSelect={(d) => {
@@ -155,7 +155,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
                   if (d) setCalOpen(false);
                 }}
               />
-            )}
+            </Expand>
 
             <div className="meta-row">
               <ClockIcon />
@@ -184,9 +184,9 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
               </span>
               <ChevronDown size={15} className="meta-row-chev" />
             </button>
-            {slotOpen && (
+            <Expand open={slotOpen}>
               <div className="inline-panel">
-                <div className="repeat-chips">
+                <div className="repeat-chips"><SelectionIndicator selector="button.active" />
                   <button
                     type="button"
                     className={`chip chip-btn ${!task.slot ? 'active' : ''}`}
@@ -212,12 +212,13 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
                   ))}
                 </div>
               </div>
-            )}
+            </Expand>
 
             <div className="meta-row priority-row">
               <Flag size={17} className="meta-row-icon" />
               <span className="meta-row-label">优先级</span>
               <div className="priority-picker">
+                <SelectionIndicator selector="button.active" />
                 {([1, 2, 3] as Priority[]).map((p) => (
                   <button
                     type="button"
@@ -255,7 +256,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
               <span className="meta-row-value">{task.repeat ? repeatLabel(task.repeat) : '不重复'}</span>
               <ChevronDown size={15} className="meta-row-chev" />
             </button>
-            {repeatOpen && (
+            <Expand open={repeatOpen}>
               <RepeatPanel
                 value={task.repeat}
                 onChange={(r) => {
@@ -263,7 +264,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
                   if (!task.due && r) patch({ due: todayISO() });
                 }}
               />
-            )}
+            </Expand>
           </div>
 
           {/* 子任务 */}
@@ -390,8 +391,8 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </Panel>
+    </Overlay>
   );
 }
 
@@ -456,7 +457,7 @@ function CalendarPanel({
           <ChevronRight size={16} />
         </button>
       </div>
-      <div className="cal-grid">
+      <div className="cal-grid"><SelectionIndicator selector=".cal-cell.selected" />
         {['日', '一', '二', '三', '四', '五', '六'].map((w) => (
           <span className="cal-week" key={w}>
             {w}
@@ -536,7 +537,7 @@ function RepeatPanel({
 
   return (
     <div className="inline-panel">
-      <div className="repeat-chips">
+      <div className="repeat-chips"><SelectionIndicator selector="button.active" />
         {presets.map((p) => (
           <button
             type="button"

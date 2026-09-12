@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Check, CheckSquare, Clock, Flag, Repeat, Trash2 } from 'lucide-react';
 import type { Task } from '../types';
 import { useApp } from '../store';
@@ -18,8 +19,10 @@ export function TaskRow({
   onOpen: () => void;
 }) {
   const { dispatch } = useApp();
+  const reduced = useReducedMotion();
   const { push } = useToast();
   const [dx, setDx] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const start = useRef<{ x: number; y: number; id: number } | null>(null);
   const dragging = useRef(false);
   const dxRef = useRef(0);
@@ -33,13 +36,13 @@ export function TaskRow({
   const onDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
     dispatch({ type: 'deleteTask', id: task.id });
-    push(`已删除「${task.title}」`, { label: '撤销', fn: () => dispatch({ type: 'undoDelete' }) });
+    push(`已删除「${task.title}」`, { label: '撤销', fn: () => dispatch({ type: 'undoDelete', id: task.id }) });
     setDx(0);
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if ((e.target as HTMLElement).closest('button, input, textarea, a')) return;
-    start.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    start.current = { x: e.clientX - dx, y: e.clientY, id: e.pointerId };
     dragging.current = false;
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
@@ -51,6 +54,7 @@ export function TaskRow({
       if (Math.abs(dxNow) < 6 && Math.abs(dy) < 6) return;
       if (Math.abs(dy) > Math.abs(dxNow)) return; // 让位给纵向滚动
       dragging.current = true;
+      setIsDragging(true);
       e.currentTarget.setPointerCapture(e.pointerId);
     }
     dxRef.current = Math.max(-92, Math.min(92, dxNow));
@@ -59,6 +63,7 @@ export function TaskRow({
   const onPointerEnd = () => {
     if (!dragging.current) return;
     dragging.current = false;
+    setIsDragging(false);
     start.current = null;
     justSwiped.current = true; // 阻止紧随其后的 click 打开详情
     const v = dxRef.current;
@@ -80,19 +85,22 @@ export function TaskRow({
   };
 
   return (
-    <div className="task-row-wrap">
-      <button type="button" className="task-swipe-del" onClick={onDelete} aria-label="删除任务">
+    <motion.div className="task-row-wrap" layout="position" initial={{ opacity: 0, y: reduced ? 0 : 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : 8, height: 0, marginBottom: 0 }} transition={{ duration: reduced ? 0 : .22, ease: [.2, 0, 0, 1] }}>
+      <button type="button" className="task-swipe-del" onClick={onDelete} aria-label="删除任务" tabIndex={dx < 0 ? 0 : -1} aria-hidden={dx >= 0}>
         <Trash2 size={15} />
         删除
       </button>
       <div
         className={`task-row ${task.done ? 'done' : ''}`}
+        data-dragging={isDragging || undefined}
+        data-revealed={dx < 0 || undefined}
         style={{ transform: `translateX(${dx}px)` }}
         role="button"
         tabIndex={0}
         aria-label={`${task.title}${task.done ? '(已完成)' : ''}`}
         onClick={onClickRow}
         onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             onOpen();
@@ -101,7 +109,7 @@ export function TaskRow({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
-        onPointerCancel={onPointerEnd}
+        onPointerCancel={() => { setIsDragging(false); dragging.current = false; start.current = null; dxRef.current = 0; setDx(0); }}
       >
         <button
           type="button"
@@ -111,6 +119,7 @@ export function TaskRow({
             toggle();
           }}
           aria-label={task.done ? '标记为未完成' : '标记为完成'}
+          aria-pressed={task.done}
         >
           {task.done && <Check size={15} strokeWidth={3} />}
         </button>
@@ -170,7 +179,7 @@ export function TaskRow({
           </span>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 }
 

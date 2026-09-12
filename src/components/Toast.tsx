@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 
 interface ToastAction {
   label: string;
@@ -29,6 +30,7 @@ export function useToast(): ToastCtx {
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const reduced = useReducedMotion();
   const [items, setItems] = useState<ToastItem[]>([]);
   const idRef = useRef(1);
 
@@ -47,8 +49,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <Ctx.Provider value={{ push }}>
       {children}
       <div className="toasts" role="status" aria-live="polite">
-        {items.map((it) => (
-          <div className="toast" key={it.id}>
+        <AnimatePresence initial={false}>{items.map((it) => (
+          <motion.div className="toast" key={it.id} layout="position" initial={{ opacity: 0, y: reduced ? 0 : 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: reduced ? 0 : 14 }} transition={{ duration: reduced ? 0 : .22 }}>
             <span className="toast-msg">{it.msg}</span>
             {it.action && (
               <button
@@ -62,8 +64,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 {it.action.label}
               </button>
             )}
-          </div>
-        ))}
+          </motion.div>
+        ))}</AnimatePresence>
       </div>
     </Ctx.Provider>
   );

@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { Overlay, Panel } from './components/Motion';
 import { registerSW } from 'virtual:pwa-register';
 import { CalendarDays, CheckCircle2, KeyRound, Sun } from 'lucide-react';
 import type { ViewRoute } from './types';
@@ -14,6 +16,7 @@ import { SearchOverlay } from './components/SearchOverlay';
 import { TaskDetailSheet } from './components/TaskDetailSheet';
 import { useToast } from './components/Toast';
 import { AppLogo } from './components/icons';
+import { DialogAccessibility } from './components/DialogAccessibility';
 
 function parseHash(): ViewRoute {
   const h = location.hash.replace(/^#\/?/, '');
@@ -49,12 +52,26 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export default function App() {
-  const { state, dispatch, hydrated } = useApp();
+  const { state, dispatch, hydrated, storageError } = useApp();
   const { push } = useToast();
   const [route, setRoute] = useState<ViewRoute>(() => parseHash());
+  const reduced = useReducedMotion();
+  const routeMotion = useRef({ view: route.view, direction: 1 });
+  if (routeMotion.current.view !== route.view) {
+    const order = ['today', 'plan', 'insights', 'settings'];
+    routeMotion.current = { view: route.view, direction: order.indexOf(route.view) > order.indexOf(routeMotion.current.view) ? 1 : -1 };
+  }
+  const direction = reduced ? 0 : routeMotion.current.direction;
   const [detailId, setDetailId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !document.querySelector('[role="dialog"]')) { event.preventDefault(); setSearchOpen(true); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   useEffect(() => {
     const onHash = () => setRoute(parseHash());
@@ -99,14 +116,16 @@ export default function App() {
 
   return (
     <div className="app">
+      <DialogAccessibility />
       <Sidebar route={route} navigate={navigate} todayCount={todayCount} />
 
       <main className="main">
-        <div className="main-inner">
+        {storageError && <div className="storage-error" role="alert">{storageError}</div>}
+        {!hydrated ? <div className="loading-state" role="status">{storageError ? '数据尚未加载，请刷新重试。' : '正在整理你的清单…'}</div> : <AnimatePresence mode="wait" initial={false} custom={direction}><motion.div className="main-inner" key={route.view} custom={direction} variants={{ enter: (d: number) => ({ opacity: 0, x: d * 18 }), active: { opacity: 1, x: 0 }, leave: (d: number) => ({ opacity: 0, x: -d * 18 }) }} initial="enter" animate="active" exit="leave" transition={{ duration: reduced ? 0 : .16, ease: [.2, 0, 0, 1] }}>
           {route.view === 'today' && (
             <TodayView openDetail={setDetailId} openSearch={() => setSearchOpen(true)} />
           )}
-          {route.view === 'plan' && <PlanView navigate={navigate} />}
+          {route.view === 'plan' && <PlanView navigate={navigate} openDetail={setDetailId} />}
           {route.view === 'insights' && (
             <InsightsView navigate={navigate} openDetail={setDetailId} />
           )}
@@ -117,21 +136,21 @@ export default function App() {
               onInstall={onInstall}
             />
           )}
-        </div>
+        </motion.div></AnimatePresence>}
       </main>
 
       <BottomNav route={route} navigate={navigate} />
 
-      {searchOpen && (
+      <AnimatePresence>{searchOpen && (
         <SearchOverlay onClose={() => setSearchOpen(false)} onOpenDetail={setDetailId} />
-      )}
-      {detailId && <TaskDetailSheet taskId={detailId} onClose={() => setDetailId(null)} />}
+      )}</AnimatePresence>
+      <AnimatePresence>{detailId && <TaskDetailSheet key={detailId} taskId={detailId} onClose={() => setDetailId(null)} />}</AnimatePresence>
 
-      {hydrated && !state.settings.onboarded && (
+      <AnimatePresence>{hydrated && !state.settings.onboarded && (
         <WelcomeModal
           onDone={() => dispatch({ type: 'setSettings', patch: { onboarded: true } })}
         />
-      )}
+      )}</AnimatePresence>
     </div>
   );
 }
@@ -145,8 +164,8 @@ function WelcomeModal({ onDone }: { onDone: () => void }) {
     },
     {
       icon: <CalendarDays size={17} />,
-      title: '计划:一句话生成安排',
-      desc: '输入「上午开会,下午写方案,晚上健身」,AI 自动拆成任务并分配到对应时段。',
+      title: '计划:聊天就能调整安排',
+      desc: '和 AI 连续对话，直接新增、改期、完成或删除任务，每次操作都有回执并可撤销。',
     },
     {
       icon: <CheckCircle2 size={17} />,
@@ -160,8 +179,8 @@ function WelcomeModal({ onDone }: { onDone: () => void }) {
     },
   ];
   return (
-    <div className="modal-overlay welcome-overlay">
-      <div className="welcome-modal" role="dialog" aria-modal="true">
+    <Overlay className="modal-overlay welcome-overlay">
+      <Panel className="welcome-modal" label="欢迎使用拾光清单">
         <AppLogo size={56} />
         <h2 className="welcome-title">欢迎使用拾光清单</h2>
         <p className="welcome-sub">一个漂亮、好用的移动端待办应用</p>
@@ -179,7 +198,7 @@ function WelcomeModal({ onDone }: { onDone: () => void }) {
         <button type="button" className="btn btn-primary btn-block" onClick={onDone}>
           开始使用
         </button>
-      </div>
-    </div>
+      </Panel>
+    </Overlay>
   );
 }

@@ -30,6 +30,8 @@ export interface Task {
   done: boolean;
   createdAt: number;
   completedAt?: number;
+  /** 下一次重复任务的固定标识，避免反复勾选产生副本。 */
+  nextOccurrenceId?: string;
 }
 
 export interface TaskList {
@@ -55,6 +57,17 @@ export interface AppState {
   tasks: Task[];
   lists: TaskList[];
   settings: Settings;
+  conversation?: ChatMessage[];
+}
+
+export interface TaskChange { id: string; before?: Task; after?: Task }
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: number;
+  status?: 'applied' | 'undone' | 'error';
+  changes?: TaskChange[];
 }
 
 export const INBOX_ID = 'inbox';

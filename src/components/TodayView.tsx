@@ -1,4 +1,6 @@
-import { useMemo, useRef, useState } from 'react';
+import { AnimatePresence } from 'motion/react';
+import { Overlay, Panel, SelectionIndicator } from './Motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Moon, Plus, RotateCcw, Search, Sunrise, Sun, X } from 'lucide-react';
 import type { Task, TimeSlot } from '../types';
 import { INBOX_ID } from '../types';
@@ -34,6 +36,7 @@ export function TodayView({ openDetail, openSearch }: Props) {
   const today = todayISO();
   const [selected, setSelected] = useState(today);
   const [weekStart, setWeekStart] = useState<Date>(() => sundayOf(new Date()));
+  const [filter, setFilter] = useState<'all' | 'pending' | 'done'>('all');
 
   // 周历条滑动换周
   const swipeStart = useRef<{ x: number; y: number; id: number } | null>(null);
@@ -59,6 +62,7 @@ export function TodayView({ openDetail, openSearch }: Props) {
     const d = new Date(weekStart);
     d.setDate(d.getDate() + dir * 7);
     setWeekStart(d);
+    setSelected((date) => addDaysISO(date, dir * 7));
   };
 
   const backToToday = () => {
@@ -67,7 +71,7 @@ export function TodayView({ openDetail, openSearch }: Props) {
   };
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if ((e.target as HTMLElement).closest('button')) return;
+    if ((e.target as HTMLElement).closest('.week-nav')) return;
     swipeStart.current = { x: e.clientX, y: e.clientY, id: e.pointerId };
     swiping.current = false;
   };
@@ -80,6 +84,7 @@ export function TodayView({ openDetail, openSearch }: Props) {
       if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
       if (Math.abs(dy) > Math.abs(dx)) return;
       swiping.current = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
     }
     if (swiping.current) e.preventDefault();
   };
@@ -128,6 +133,9 @@ export function TodayView({ openDetail, openSearch }: Props) {
   }, [allTasks]);
 
   const hasAny = allTasks.length > 0;
+  const completed = allTasks.filter((t) => t.done).length;
+  const progress = hasAny ? Math.round(completed / allTasks.length * 100) : 0;
+  const visibleTasks = (tasks: Task[]) => tasks.filter((t) => filter === 'all' || (filter === 'done' ? t.done : !t.done));
   const title = isTodaySel ? '今天' : formatDue(selected, today);
 
   return (
@@ -135,6 +143,7 @@ export function TodayView({ openDetail, openSearch }: Props) {
       <header className="view-header today-header">
         <div className="view-header-text">
           <h1 className="view-title">{title}</h1>
+          <div className="view-subtitle">{selected.replace(/-/g, '.')} · 把时间留给重要的事</div>
         </div>
         <div className="view-header-actions">
           <button
@@ -155,22 +164,33 @@ export function TodayView({ openDetail, openSearch }: Props) {
         </div>
       </header>
 
+      <section className="day-overview" aria-label="当日进度">
+        <div><span className="eyebrow">ONE THING AT A TIME</span><h2>{hasAny && completed === allTasks.length ? '做得好，留一点时间给自己。' : '慢慢来，也在向前。'}</h2><p>{hasAny ? `还有 ${allTasks.length - completed} 件待办，已完成 ${completed} 件` : '从一件小事开始，安排属于你的一天。'}</p></div>
+        <div className="day-progress" role="progressbar" aria-label="任务完成进度" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+          <svg viewBox="0 0 100 100" aria-hidden="true"><circle className="progress-track" cx="50" cy="50" r="42" /><circle className="progress-value" cx="50" cy="50" r="42" pathLength="100" strokeDasharray="100" strokeDashoffset={100 - progress} /></svg><span>{progress}<small>%</small></span>
+        </div>
+      </section>
+      <div className="calendar-heading"><h2>一周安排</h2><span>{days[0].iso.slice(5).replace('-', '/')} — {days[6].iso.slice(5).replace('-', '/')}</span></div>
+
       {/* 周历条:周日-周六,可点击选日期,左右滑动换周 */}
       <div
         className="week-strip"
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onPointerCancel={() => { swipeStart.current = null; swiping.current = false; justSwiped.current = false; }}
       >
         <button type="button" className="week-nav" onClick={() => goWeek(-1)} aria-label="上一周">
           <ChevronLeft size={16} />
         </button>
         <div className="week-days" onClick={() => justSwiped.current && (justSwiped.current = false)}>
+          <SelectionIndicator selector=".week-day.sel" />
           {days.map((d) => (
             <button
               type="button"
               key={d.iso}
+              aria-label={d.iso}
+              aria-pressed={selected === d.iso}
               className={`week-day ${selected === d.iso ? 'sel' : ''} ${d.iso === today ? 'today' : ''}`}
               onClick={() => {
                 if (justSwiped.current) {
@@ -192,24 +212,25 @@ export function TodayView({ openDetail, openSearch }: Props) {
       </div>
 
       <div className="view-body">
+        <div className="day-toolbar"><h2>我的日程 <span>{allTasks.length}</span></h2><div className="day-filters" aria-label="任务状态筛选"><SelectionIndicator selector="button.active" />{([{ key: 'all', label: '全部' }, { key: 'pending', label: '待办' }, { key: 'done', label: '已完成' }] as const).map((item) => <button type="button" key={item.key} aria-pressed={filter === item.key} className={filter === item.key ? 'active' : ''} onClick={() => setFilter(item.key)}>{item.label}</button>)}</div></div>
         {SLOT_ORDER.map((slot) => (
           <SlotSection
             key={slot}
             slot={slot}
-            tasks={bySlot[slot]}
+            tasks={visibleTasks(bySlot[slot])}
             selectedDate={selected}
             onOpen={openDetail}
           />
         ))}
 
-        {bySlot.none.length > 0 && (
+        {visibleTasks(bySlot.none).length > 0 && (
           <div className="section">
             <div className="section-header">
               <span className="section-label">未安排</span>
               <span className="section-count">{bySlot.none.length}</span>
             </div>
             <div className="task-list">
-              {bySlot.none.map((t) => (
+              {visibleTasks(bySlot.none).map((t) => (
                 <TaskRow key={t.id} task={t} onOpen={() => openDetail(t.id)} />
               ))}
             </div>
@@ -220,7 +241,7 @@ export function TodayView({ openDetail, openSearch }: Props) {
           <Empty
             icon={<Sun size={30} />}
             title={isTodaySel ? '今天还没有任务' : '这一天没有任务'}
-            hint="在下方「早上 / 下午 / 晚上」直接添加,完成和撤销都可以在这里操作"
+            hint="点击时段右侧的加号，开始安排这一天"
           />
         )}
       </div>
@@ -244,6 +265,12 @@ function SlotSection({
   const [addOpen, setAddOpen] = useState(false);
   const [value, setValue] = useState('');
   const pending = tasks.filter((t) => !t.done).length;
+  useEffect(() => {
+    if (!addOpen) return;
+    const close = (event: KeyboardEvent) => { if (event.key === 'Escape') setAddOpen(false); };
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [addOpen]);
 
   const add = () => {
     const text = value.trim();
@@ -251,22 +278,23 @@ function SlotSection({
     const parsed = parseInput(text);
     const task = buildTask(
       text,
-      { ...parsed, due: selectedDate, dueTime: undefined, repeat: undefined },
+      { ...parsed, due: parsed.due ?? selectedDate },
       state.lists,
       INBOX_ID,
       slot,
     );
     dispatch({ type: 'addTask', task });
-    push(`已添加到${SLOT_LABEL[slot]}`);
+    push(`已添加：${formatDue(task.due!)} · ${SLOT_LABEL[slot]}`);
     setValue('');
     setAddOpen(false);
   };
 
   return (
-    <section className="section slot-section">
+    <section className={`section slot-section period-${slot}`}>
       <div className="slot-head">
         <span className={`slot-icon slot-${slot}`}>{SLOT_ICONS[slot]}</span>
         <span className="slot-label">{SLOT_LABEL[slot]}</span>
+        <span className="slot-time">{slot === 'morning' ? '开启新的一天' : slot === 'afternoon' ? '留一段专注时间' : '收获与放松'}</span>
         {pending > 0 && <span className="slot-count">{pending}</span>}
         <button
           type="button"
@@ -280,17 +308,16 @@ function SlotSection({
           <Plus size={17} />
         </button>
       </div>
-      {tasks.length > 0 && (
-        <div className="task-list">
+      {tasks.length === 0 && <button type="button" className="slot-empty" onClick={() => setAddOpen(true)}><Plus size={16} /> 留白也很好，或添加一件事</button>}
+      <div className="task-list"><AnimatePresence initial={false}>
           {tasks.map((t) => (
             <TaskRow key={t.id} task={t} onOpen={() => onOpen(t.id)} />
           ))}
-        </div>
-      )}
+        </AnimatePresence></div>
 
-      {addOpen && (
-        <div className="sheet-overlay" onClick={() => setAddOpen(false)}>
-          <div className="sheet add-sheet" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+      <AnimatePresence>{addOpen && (
+        <Overlay className="sheet-overlay" onClick={() => setAddOpen(false)}>
+          <Panel className="sheet add-sheet" label={`添加到${SLOT_LABEL[slot]}`}>
             <div className="sheet-handle" />
             <div className="sheet-header">
               <div className="sheet-title">
@@ -306,6 +333,7 @@ function SlotSection({
                 type="text"
                 className="add-sheet-input"
                 placeholder="输入任务标题"
+                aria-label="任务标题"
                 autoFocus
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
@@ -316,13 +344,14 @@ function SlotSection({
                   }
                 }}
               />
-              <button type="button" className="btn btn-primary btn-block" onClick={add}>
+              <p className="input-hint">支持「明天 9点 开会 p1」「每天 阅读 @学习」</p>
+              <button type="button" className="btn btn-primary btn-block" disabled={!value.trim()} onClick={add}>
                 添加任务
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </Panel>
+        </Overlay>
+      )}</AnimatePresence>
     </section>
   );
 }

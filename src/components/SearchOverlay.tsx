@@ -3,6 +3,7 @@ import { ArrowLeft, Search } from 'lucide-react';
 import { useApp } from '../store';
 import { TaskRow } from './TaskRow';
 import { Empty } from './Empty';
+import { Overlay, Panel } from './Motion';
 
 export function SearchOverlay({
   onClose,
@@ -43,8 +44,8 @@ export function SearchOverlay({
   }, [q, state.tasks]);
 
   return (
-    <div className="search-overlay" onClick={onClose}>
-      <div className="search-panel" onClick={(e) => e.stopPropagation()}>
+    <Overlay className="search-overlay" onClick={onClose}>
+      <Panel className="search-panel" label="搜索任务">
         <div className="search-bar">
           <button type="button" className="icon-btn" onClick={onClose} aria-label="关闭搜索">
             <ArrowLeft size={18} />
@@ -88,7 +89,7 @@ export function SearchOverlay({
             </div>
           )}
         </div>
-      </div>
-    </div>
+      </Panel>
+    </Overlay>
   );
 }

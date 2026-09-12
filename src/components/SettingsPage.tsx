@@ -1,4 +1,7 @@
+import { AnimatePresence } from 'motion/react';
+import { SelectionIndicator } from './Motion';
 import { useRef, useState } from 'react';
+import { parseBackup } from '../utils/backup';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -45,8 +48,7 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
   const setS = (patch: Partial<Settings>) => dispatch({ type: 'setSettings', patch });
 
   const back = () => {
-    if (window.history.length > 1) window.history.back();
-    else navigate({ view: 'insights' });
+    navigate({ view: 'today' });
   };
 
   const onTest = async () => {
@@ -87,10 +89,7 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
   const onImportFile = async (file: File) => {
     try {
       const text = await file.text();
-      const obj = JSON.parse(text) as Record<string, unknown>;
-      const tasks = Array.isArray(obj.tasks) ? (obj.tasks as Task[]) : null;
-      const lists = Array.isArray(obj.lists) ? (obj.lists as TaskList[]) : null;
-      if (!tasks || !lists) throw new Error('文件格式不正确');
+      const { tasks, lists } = parseBackup(JSON.parse(text));
       setPendingImport({ tasks, lists });
     } catch {
       push('导入失败:文件格式不正确');
@@ -140,7 +139,7 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
           </span>
         </div>
         <p className="settings-card-desc">
-          填写自己的 DeepSeek API Key 后,即可使用「计划」页的一句话拆分、任务拆解等 AI
+          填写自己的 DeepSeek API Key 后,即可使用「计划」页的连续聊天、计划调整、任务拆解等 AI
           能力。密钥仅保存在本机浏览器中,直接通过 HTTPS 请求 DeepSeek,不经过任何第三方服务器。
         </p>
 
@@ -226,7 +225,7 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
             外观
           </div>
         </div>
-        <div className="segmented">
+        <div className="segmented"><SelectionIndicator selector=".seg-btn.active" />
           {(
             [
               { key: 'light', label: '浅色', icon: <Sun size={15} /> },
@@ -321,7 +320,7 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
             在「今天」页点时段右侧的 <code>＋</code> 添加任务,完成与撤销也在此页操作
           </li>
           <li>
-            在「计划」页输入一段话,AI 自动拆分并分配到早上 / 下午 / 晚上
+            在「计划」页和 AI 聊天，直接新增、改期、完成或删除任务，可撤销每次操作
           </li>
           <li>
             <code>每天喝药 @健康</code> 创建带标签的每日重复任务
@@ -332,10 +331,10 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
         </ul>
       </section>
 
-      {confirmClear && (
+      <AnimatePresence>{confirmClear && (
         <Modal
           title="清空所有数据?"
-          body="将删除全部任务(API Key 等设置保留),且无法恢复。建议先导出备份。"
+          body="将删除全部任务和聊天记录(API Key 等设置保留),且无法恢复。建议先导出备份。"
           confirmLabel="全部清空"
           danger
           onCancel={() => setConfirmClear(false)}
@@ -345,9 +344,9 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
             setConfirmClear(false);
           }}
         />
-      )}
+      )}</AnimatePresence>
 
-      {pendingImport && (
+      <AnimatePresence>{pendingImport && (
         <Modal
           title="导入数据?"
           body={`将用备份内容替换当前数据(${pendingImport.tasks.length} 个任务)。`}
@@ -355,7 +354,7 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
           onCancel={() => setPendingImport(null)}
           onConfirm={doImport}
         />
-      )}
+      )}</AnimatePresence>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { BarChart3, Settings, Sparkles, Sun } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { ViewRoute } from '../types';
 import { AppLogo } from './icons';
+import { SelectionIndicator } from './Motion';
 
 interface Props {
   route: ViewRoute;
@@ -26,6 +27,7 @@ function NavItem({
     <button
       type="button"
       className={`nav-item ${active ? 'active' : ''}`}
+      aria-current={active ? 'page' : undefined}
       onClick={onClick}
     >
       <span className="nav-icon">{icon}</span>
@@ -38,6 +40,7 @@ function NavItem({
 export function Sidebar({ route, navigate, todayCount }: Props) {
   return (
     <aside className="sidebar">
+      <SelectionIndicator selector=".nav-item.active" />
       <div className="brand">
         <AppLogo size={34} />
         <div>
@@ -69,6 +72,7 @@ export function Sidebar({ route, navigate, todayCount }: Props) {
       </nav>
 
       <div className="sidebar-footer">
+        <div className="sidebar-note"><Sun size={28} /><strong>每一小步，都算数。</strong><span>安排生活，也为自己留白。</span></div>
         <NavItem
           active={route.view === 'settings'}
           icon={<Settings size={19} />}

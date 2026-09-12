@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { formatDue, nextDueISO, repeatLabel, toISODate } from './date';
 
 describe('date utils', () => {
+  it('clamps month-end and leap-day recurrences', () => {
+    expect(nextDueISO('2026-01-31', { freq: 'month', interval: 1 }, '2026-01-01')).toBe('2026-02-28');
+    expect(nextDueISO('2024-02-29', { freq: 'year', interval: 1 }, '2024-01-01')).toBe('2025-02-28');
+  });
   it('formatDue 相对文案', () => {
     expect(formatDue('2026-02-14', '2026-02-14')).toBe('今天 · 周六');
     expect(formatDue('2026-02-15', '2026-02-14')).toBe('明天 · 周日');

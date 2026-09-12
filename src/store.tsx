@@ -4,20 +4,25 @@ import {
   useEffect,
   useReducer,
   useRef,
+  useState,
   type Dispatch,
   type ReactNode,
 } from 'react';
-import type { AppState, ParsedInput, Settings, Task, TaskList, TimeSlot } from './types';
+import type { AppState, ChatMessage, ParsedInput, Settings, Task, TaskChange, TaskList, TimeSlot } from './types';
 import { DEFAULT_SETTINGS, INBOX_ID } from './types';
 import { loadAll, saveAll } from './db';
 import { nextDueISO, uid } from './utils/date';
 
 export type Action =
+  | { type: 'chatMessage'; message: ChatMessage }
+  | { type: 'clearChat' }
+  | { type: 'applyPlan'; changes: TaskChange[]; message: ChatMessage }
+  | { type: 'undoPlan'; id: string }
   | { type: 'hydrate'; state: AppState }
   | { type: 'addTask'; task: Task }
   | { type: 'updateTask'; id: string; patch: Partial<Task> }
   | { type: 'deleteTask'; id: string }
-  | { type: 'undoDelete' }
+  | { type: 'undoDelete'; id: string }
   | { type: 'toggleTask'; id: string }
   | { type: 'toggleSubtask'; id: string; subId: string }
   | { type: 'addList'; list: TaskList }
@@ -29,7 +34,7 @@ export type Action =
 
 interface InternalState extends AppState {
   hydrated: boolean;
-  undo?: Task;
+  undo?: Task[];
 }
 
 const initial: InternalState = {
@@ -43,8 +48,27 @@ function inboxList(): TaskList {
   return { id: INBOX_ID, name: '收件箱', color: '#6E56CF', icon: 'inbox', system: true };
 }
 
-function reducer(state: InternalState, action: Action): InternalState {
+export function reducer(state: InternalState, action: Action): InternalState {
   switch (action.type) {
+    case 'chatMessage':
+      return { ...state, conversation: [...(state.conversation ?? []), action.message] };
+    case 'clearChat':
+      return { ...state, conversation: [] };
+    case 'applyPlan': {
+      const conflict = action.changes.some((c) => JSON.stringify(state.tasks.find((t) => t.id === c.id)) !== JSON.stringify(c.before) || (c.after && !state.lists.some((list) => list.id === c.after!.listId)));
+      if (conflict) return reducer(state, { type: 'chatMessage', message: { ...action.message, content: '相关任务刚刚发生了变化，这次操作没有执行。请重新告诉我需要怎样调整。', status: 'error', changes: undefined } });
+      const ids = new Set(action.changes.map((c) => c.id));
+      return { ...state, tasks: [...state.tasks.filter((t) => !ids.has(t.id)), ...action.changes.flatMap((c) => c.after ? [c.after] : [])], conversation: [...(state.conversation ?? []), { ...action.message, status: action.changes.length ? 'applied' : undefined, changes: action.changes }] };
+    }
+    case 'undoPlan': {
+      const message = state.conversation?.find((m) => m.id === action.id);
+      if (!message || message.status !== 'applied' || !message.changes?.length) return state;
+      if (message.changes.some((c) => JSON.stringify(state.tasks.find((t) => t.id === c.id)) !== JSON.stringify(c.after))) {
+        return reducer(state, { type: 'chatMessage', message: { id: uid(), role: 'assistant', createdAt: Date.now(), content: '这些任务已有后续修改，无法直接撤销。你可以告诉我需要恢复哪一项。', status: 'error' } });
+      }
+      const ids = new Set(message.changes.map((c) => c.id));
+      return { ...state, tasks: [...state.tasks.filter((t) => !ids.has(t.id)), ...message.changes.flatMap((c) => c.before ? [c.before] : [])], conversation: state.conversation?.map((m) => m.id === message.id ? { ...m, status: 'undone' } : m) };
+    }
     case 'hydrate':
       return { ...action.state, hydrated: true };
     case 'addTask':
@@ -59,12 +83,13 @@ function reducer(state: InternalState, action: Action): InternalState {
       return {
         ...state,
         tasks: state.tasks.filter((t) => t.id !== action.id),
-        undo: task,
+        undo: task ? [...(state.undo ?? []).slice(-19), task] : state.undo,
       };
     }
     case 'undoDelete': {
-      if (!state.undo) return state;
-      return { ...state, tasks: [...state.tasks, state.undo], undo: undefined };
+      const task = state.undo?.find((t) => t.id === action.id);
+      if (!task || state.tasks.some((t) => t.id === task.id)) return state;
+      return { ...state, tasks: [...state.tasks, task], undo: state.undo?.filter((t) => t.id !== action.id) };
     }
     case 'toggleTask': {
       const task = state.tasks.find((t) => t.id === action.id);
@@ -74,7 +99,7 @@ function reducer(state: InternalState, action: Action): InternalState {
           ? { ...t, done: !t.done, completedAt: !t.done ? Date.now() : undefined }
           : t,
       );
-      if (!task.done && task.repeat) {
+      if (!task.done && task.repeat && !task.nextOccurrenceId) {
         const next: Task = {
           ...task,
           id: uid(),
@@ -82,7 +107,10 @@ function reducer(state: InternalState, action: Action): InternalState {
           completedAt: undefined,
           createdAt: Date.now(),
           due: nextDueISO(task.due, task.repeat),
+          subtasks: task.subtasks.map((s) => ({ ...s, id: uid(), done: false })),
+          nextOccurrenceId: undefined,
         };
+        tasks = tasks.map((t) => t.id === task.id ? { ...t, nextOccurrenceId: next.id } : t);
         tasks = [...tasks, next];
       }
       return { ...state, tasks };
@@ -121,9 +149,9 @@ function reducer(state: InternalState, action: Action): InternalState {
     case 'setSettings':
       return { ...state, settings: { ...state.settings, ...action.patch } };
     case 'replaceAll':
-      return { ...state, tasks: action.tasks, lists: action.lists };
+      return { ...state, tasks: action.tasks, lists: action.lists, undo: undefined, conversation: [] };
     case 'wipeData':
-      return { ...state, tasks: [], lists: [inboxList()] };
+      return { ...state, tasks: [], lists: [inboxList()], undo: undefined, conversation: [] };
     default:
       return state;
   }
@@ -133,6 +161,7 @@ interface Ctx {
   state: AppState;
   hydrated: boolean;
   dispatch: Dispatch<Action>;
+  storageError: string | null;
 }
 
 const StoreCtx = createContext<Ctx | null>(null);
@@ -140,6 +169,7 @@ const StoreCtx = createContext<Ctx | null>(null);
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initial);
   const hydrated = useRef(false);
+  const [storageError, setStorageError] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -151,6 +181,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
       hydrated.current = true;
       dispatch({ type: 'hydrate', state: s });
+    }).catch(() => {
+      if (alive) setStorageError('无法读取本机数据，请检查浏览器存储权限后刷新。');
     });
     return () => {
       alive = false;
@@ -159,10 +191,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated.current) return;
-    const t = setTimeout(() => {
-      void saveAll({ tasks: state.tasks, lists: state.lists, settings: state.settings });
-    }, 250);
-    return () => clearTimeout(t);
+    void saveAll({ tasks: state.tasks, lists: state.lists, settings: state.settings, conversation: state.conversation })
+      .then(() => setStorageError(null))
+      .catch(() => setStorageError('本次更改未能保存，请及时在设置中导出备份。'));
   }, [state]);
 
   // 主题跟随系统
@@ -179,7 +210,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [state.settings.theme]);
 
   return (
-    <StoreCtx.Provider value={{ state, hydrated: state.hydrated, dispatch }}>
+    <StoreCtx.Provider value={{ state, hydrated: state.hydrated, dispatch, storageError }}>
       {children}
     </StoreCtx.Provider>
   );

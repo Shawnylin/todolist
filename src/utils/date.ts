@@ -80,8 +80,14 @@ export function nextDueISO(dueISO: string | undefined, repeat: Repeat, nowISO = 
     const d = new Date(date);
     if (freq === 'day') d.setDate(d.getDate() + interval);
     else if (freq === 'week') d.setDate(d.getDate() + interval * 7);
-    else if (freq === 'month') d.setMonth(d.getMonth() + interval);
-    else if (freq === 'year') d.setFullYear(d.getFullYear() + interval);
+    else if (freq === 'month' || freq === 'year') {
+      const day = d.getDate();
+      d.setDate(1);
+      if (freq === 'month') d.setMonth(d.getMonth() + interval);
+      else d.setFullYear(d.getFullYear() + interval);
+      const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+      d.setDate(Math.min(day, last));
+    }
     else if (freq === 'weekday') {
       // 推进到下一个工作日
       do {

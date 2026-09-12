@@ -1,5 +1,5 @@
 import { openDB, type IDBPDatabase } from 'idb';
-import type { AppState, Settings, Task, TaskList } from './types';
+import type { AppState, ChatMessage, Settings, Task, TaskList } from './types';
 import { DEFAULT_SETTINGS, INBOX_ID } from './types';
 
 const DB_NAME = 'tidy-todo-db';
@@ -33,12 +33,14 @@ export async function loadAll(): Promise<AppState> {
   const tasks = (await tx.store.get('tasks')) as Task[] | undefined;
   const lists = (await tx.store.get('lists')) as TaskList[] | undefined;
   const settings = (await tx.store.get('settings')) as Settings | undefined;
+  const conversation = (await tx.store.get('conversation')) as ChatMessage[] | undefined;
   await tx.done;
   const finalLists = lists && lists.length > 0 ? lists : [DEFAULT_INBOX];
   return {
     tasks: tasks ?? [],
     lists: finalLists,
     settings: { ...DEFAULT_SETTINGS, ...(settings ?? {}) },
+    conversation: conversation ?? [],
   };
 }
 
@@ -49,6 +51,7 @@ export async function saveAll(state: AppState): Promise<void> {
     tx.store.put(state.tasks, 'tasks'),
     tx.store.put(state.lists, 'lists'),
     tx.store.put(state.settings, 'settings'),
+    tx.store.put(state.conversation ?? [], 'conversation'),
   ]);
   await tx.done;
 }
