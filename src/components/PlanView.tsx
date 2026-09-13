@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useIsPresent, useReducedMotion } from 'motion/react';
 import {
   ArrowUp,
+  Brain,
   CalendarDays,
   Check,
   KeyRound,
@@ -14,13 +15,14 @@ import {
   Square,
   Trash2,
 } from 'lucide-react';
-import { hasAiKey } from '../ai';
-import type { ChatMessage, ViewRoute } from '../types';
+import { AiError, hasAiKey } from '../ai';
+import type { ChatMessage, ReasoningEffort, ViewRoute } from '../types';
 import { sortTasks, useApp } from '../store';
 import { formatDueShort, uid } from '../utils/date';
 import { requestPlanReply, planChanges } from '../utils/planChat';
 import { SLOT_LABEL } from '../utils/slot';
 import { Modal } from './Modal';
+import { MarkdownMessage } from './MarkdownMessage';
 import { TaskRow } from './TaskRow';
 import { Overlay, Panel } from './Motion';
 
@@ -38,16 +40,25 @@ export function PlanView({
   const [clearOpen, setClearOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [streaming, setStreaming] = useState<ChatMessage | null>(null);
+  const [fallbackNotice, setFallbackNotice] = useState('');
   const request = useRef<AbortController | null>(null);
+  const streamRef = useRef<ChatMessage | null>(null);
+  const streamSession = useRef<string | undefined>(undefined);
+  const streamFrame = useRef(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const firstScroll = useRef(true);
+  const stickToBottom = useRef(true);
   const composing = useRef(false);
   const allowLineBreak = useRef(false);
   const reduced = useReducedMotion();
   const present = useIsPresent();
   const hasKey = hasAiKey(state.settings);
   const pending = sortTasks(state.tasks.filter((t) => !t.done));
+  const reasoningEnabled = state.settings.reasoningEnabled ?? false;
+  const reasoningEffort = state.settings.reasoningEffort ?? 'medium';
+  const displayMessages = streaming ? [...messages, streaming] : messages;
   const message = (content: string, role: ChatMessage['role'] = 'assistant'): ChatMessage => ({
     id: uid(),
     role,
@@ -59,55 +70,100 @@ export function PlanView({
     request.current = null;
     setBusy(false);
   };
+  const interrupt = (fallback: string) => {
+    const partial = streamRef.current;
+    const sessionId = streamSession.current;
+    stop();
+    cancelAnimationFrame(streamFrame.current);
+    dispatch({
+      type: 'chatMessage',
+      sessionId,
+      message: partial?.content
+        ? { ...partial, status: 'stopped' }
+        : { ...message(fallback), status: 'stopped' },
+    });
+    streamRef.current = null;
+    streamSession.current = undefined;
+    setStreaming(null);
+  };
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => {
     if (!present && request.current) {
-      stop();
-      dispatch({
-        type: 'chatMessage',
-        message: {
-          id: uid(),
-          role: 'assistant',
-          createdAt: Date.now(),
-          content: '已离开聊天，本次请求已停止，没有修改计划。',
-        },
-      });
+      interrupt('已离开聊天，本次请求已停止，没有修改计划。');
     }
   }, [present, dispatch]);
   useLayoutEffect(() => {
     const el = scrollRef.current;
+    if (!el || (!firstScroll.current && !stickToBottom.current)) return;
     el?.scrollTo({
       top: el.scrollHeight,
-      behavior: reduced || firstScroll.current ? 'instant' : 'smooth',
+      behavior: reduced || firstScroll.current || streaming ? 'instant' : 'smooth',
     });
     firstScroll.current = false;
-  }, [messages.length, busy, reduced, state.activeConversationId]);
+  }, [messages.length, busy, reduced, state.activeConversationId, streaming?.content]);
 
   const send = async (retryText?: string) => {
     const raw = (retryText ?? text).trim();
     if (!raw || request.current || !hasKey) return;
     const controller = new AbortController();
+    const responseId = uid();
     request.current = controller;
     const snapshot = state;
     const sessionId = state.activeConversationId;
+    streamSession.current = sessionId;
+    stickToBottom.current = true;
+    setFallbackNotice('');
     dispatch({ type: 'chatMessage', sessionId, message: message(raw, 'user') });
     setText('');
     setBusy(true);
     try {
-      const result = await requestPlanReply(snapshot, messages, raw, controller.signal);
+      const result = await requestPlanReply(snapshot, messages, raw, controller.signal, {
+        onReply: (content) => {
+          const draft: ChatMessage = {
+            id: responseId,
+            role: 'assistant',
+            content,
+            createdAt: Date.now(),
+          };
+          streamRef.current = draft;
+          cancelAnimationFrame(streamFrame.current);
+          streamFrame.current = requestAnimationFrame(() => setStreaming(streamRef.current));
+        },
+        onReasoningFallback: () => {
+          dispatch({ type: 'setSettings', patch: { reasoningEnabled: false } });
+          setFallbackNotice('当前服务不支持深度思考，已关闭并自动重试。');
+        },
+      });
       if (controller.signal.aborted) return;
       const changes = planChanges(snapshot, result.operations);
-      dispatch({ type: 'applyPlan', sessionId, changes, message: message(result.reply) });
+      cancelAnimationFrame(streamFrame.current);
+      dispatch({
+        type: 'applyPlan',
+        sessionId,
+        changes,
+        message: { ...message(result.reply), id: responseId },
+      });
+      streamRef.current = null;
+      streamSession.current = undefined;
+      setStreaming(null);
     } catch (error) {
       if (controller.signal.aborted) return;
+      cancelAnimationFrame(streamFrame.current);
+      const partial = streamRef.current?.content;
+      const detail = error instanceof Error ? error.message : '暂时无法连接 AI，请重试。';
+      const interrupted = error instanceof AiError && error.interrupted;
       dispatch({
         type: 'chatMessage',
         sessionId,
         message: {
-          ...message(error instanceof Error ? error.message : '暂时无法连接 AI，请重试。'),
-          status: 'error',
+          ...message(partial ? `${partial}\n\n> ${detail}` : detail),
+          id: responseId,
+          status: interrupted ? 'interrupted' : 'error',
         },
       });
+      streamRef.current = null;
+      streamSession.current = undefined;
+      setStreaming(null);
     } finally {
       if (request.current === controller) {
         request.current = null;
@@ -134,8 +190,7 @@ export function PlanView({
     return () => input?.removeEventListener('beforeinput', beforeInput);
   }, []);
   const cancel = () => {
-    stop();
-    dispatch({ type: 'chatMessage', message: message('已停止，本次没有修改计划。') });
+    interrupt('已停止，本次没有修改计划。');
   };
 
   const newConversation = () => {
@@ -226,6 +281,11 @@ export function PlanView({
             role="log"
             aria-label="聊天记录"
             aria-live="polite"
+            onScroll={(event) => {
+              const element = event.currentTarget;
+              stickToBottom.current =
+                element.scrollHeight - element.scrollTop - element.clientHeight < 80;
+            }}
           >
             {!messages.length && (
               <div className="chat-welcome">
@@ -256,7 +316,7 @@ export function PlanView({
               </div>
             )}
             <AnimatePresence initial={false} key={state.activeConversationId}>
-              {messages.map((item, index) => (
+              {displayMessages.map((item, index) => (
                 <motion.article
                   key={item.id}
                   className={`chat-message ${item.role}`}
@@ -271,8 +331,19 @@ export function PlanView({
                   )}
                   <div className="chat-message-body">
                     <div className={`chat-bubble ${item.status === 'error' ? 'chat-error' : ''}`}>
-                      {item.content}
+                      {item.role === 'assistant' ? (
+                        <MarkdownMessage>{item.content}</MarkdownMessage>
+                      ) : (
+                        item.content
+                      )}
                     </div>
+                    {(item.status === 'stopped' || item.status === 'interrupted') && (
+                      <div className="chat-interrupted">
+                        {item.status === 'stopped'
+                          ? '生成已停止，未执行任务操作'
+                          : '生成已中断，未执行任务操作'}
+                      </div>
+                    )}
                     {!!item.changes?.length && (
                       <div className="chat-receipt">
                         <div className="receipt-heading">
@@ -313,29 +384,31 @@ export function PlanView({
                         )}
                       </div>
                     )}
-                    {item.status === 'error' && index === messages.length - 1 && !busy && (
-                      <button
-                        className="receipt-undo"
-                        onClick={() => {
-                          const previous = messages
-                            .slice(0, index)
-                            .reverse()
-                            .find((m) => m.role === 'user');
-                          if (previous) void send(previous.content);
-                        }}
-                      >
-                        <RotateCcw size={13} />
-                        重试
-                      </button>
-                    )}
+                    {(item.status === 'error' || item.status === 'interrupted') &&
+                      index === displayMessages.length - 1 &&
+                      !busy && (
+                        <button
+                          className="receipt-undo"
+                          onClick={() => {
+                            const previous = messages
+                              .slice(0, index)
+                              .reverse()
+                              .find((m) => m.role === 'user');
+                            if (previous) void send(previous.content);
+                          }}
+                        >
+                          <RotateCcw size={13} />
+                          重试
+                        </button>
+                      )}
                   </div>
                 </motion.article>
               ))}
             </AnimatePresence>
-            {busy && (
+            {busy && !streaming?.content && (
               <div className="chat-thinking" role="status">
                 <Sparkles size={16} />
-                <span>正在思考与整理计划</span>
+                <span>{reasoningEnabled ? '正在深度思考与整理计划' : '正在思考与整理计划'}</span>
                 <i />
                 <i />
                 <i />
@@ -349,6 +422,52 @@ export function PlanView({
               <span>去设置 →</span>
             </button>
           )}
+          <div className="chat-reasoning-bar">
+            <button
+              type="button"
+              className={`reasoning-toggle ${reasoningEnabled ? 'active' : ''}`}
+              aria-pressed={reasoningEnabled}
+              onClick={() =>
+                dispatch({
+                  type: 'setSettings',
+                  patch: { reasoningEnabled: !reasoningEnabled },
+                })
+              }
+            >
+              <Brain size={14} />
+              深度思考
+            </button>
+            {reasoningEnabled && (
+              <div className="reasoning-effort" role="group" aria-label="思考强度">
+                {(
+                  [
+                    ['low', '低'],
+                    ['medium', '中'],
+                    ['high', '高'],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    type="button"
+                    key={value}
+                    aria-pressed={reasoningEffort === value}
+                    onClick={() =>
+                      dispatch({
+                        type: 'setSettings',
+                        patch: { reasoningEffort: value as ReasoningEffort },
+                      })
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {fallbackNotice && (
+              <span className="reasoning-notice" role="status">
+                {fallbackNotice}
+              </span>
+            )}
+          </div>
           <form
             className="chat-composer"
             onSubmit={(e) => {

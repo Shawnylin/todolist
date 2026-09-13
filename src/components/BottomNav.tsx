@@ -48,7 +48,7 @@ export function BottomNav({
   ];
   return (
     <nav className="bottom-nav">
-      <SelectionIndicator selector=".bottom-nav-item.active" />
+      <SelectionIndicator selector=".bottom-nav-item.active .bottom-nav-content" />
       {[...items.slice(1), items[0]].map((it) => (
         <button
           type="button"
@@ -57,8 +57,10 @@ export function BottomNav({
           className={`bottom-nav-item ${it.active ? 'active' : ''}`}
           onClick={it.onClick}
         >
-          {it.icon}
-          <span>{it.label}</span>
+          <span className="bottom-nav-content">
+            {it.icon}
+            <span className="bottom-nav-label">{it.label}</span>
+          </span>
         </button>
       ))}
     </nav>

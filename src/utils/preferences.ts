@@ -38,6 +38,8 @@ export function migratePreferences(state: AppState): AppState {
     settings: {
       ...state.settings,
       accent: state.settings.accent ?? 'violet',
+      reasoningEnabled: state.settings.reasoningEnabled ?? false,
+      reasoningEffort: state.settings.reasoningEffort ?? 'medium',
       aiProfiles: profiles,
       activeAiProfileId: active?.id,
     },

@@ -104,8 +104,8 @@ export function SelectionIndicator({ selector }: { selector: string }) {
       const parent = group.getBoundingClientRect(),
         box = active.getBoundingClientRect();
       const next = {
-        x: box.left - parent.left + group.scrollLeft,
-        y: box.top - parent.top + group.scrollTop,
+        x: box.left - parent.left - group.clientLeft + group.scrollLeft,
+        y: box.top - parent.top - group.clientTop + group.scrollTop,
         width: box.width,
         height: box.height,
       };

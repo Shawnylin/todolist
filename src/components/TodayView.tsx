@@ -20,7 +20,6 @@ import { addDaysISO, formatDue, parseISODate, todayISO, toISODate } from '../uti
 import { SLOT_LABEL, SLOT_ORDER, slotOf } from '../utils/slot';
 import { useToast } from './Toast';
 import { TaskList } from './TaskList';
-import { Empty } from './Empty';
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -140,7 +139,6 @@ export function TodayView({ openDetail, openSearch }: Props) {
     return m;
   }, [allTasks]);
 
-  const hasAny = allTasks.length > 0;
   const visibleTasks = (tasks: Task[]) =>
     tasks.filter((t) => filter === 'all' || (filter === 'done' ? t.done : !t.done));
   const title = isTodaySel ? '今天' : formatDue(selected, today);
@@ -267,14 +265,6 @@ export function TodayView({ openDetail, openSearch }: Props) {
             </div>
             <TaskList tasks={visibleTasks(bySlot.none)} onOpen={openDetail} />
           </div>
-        )}
-
-        {!hasAny && (
-          <Empty
-            icon={<Sun size={30} />}
-            title={isTodaySel ? '今天还没有任务' : '这一天没有任务'}
-            hint="点击时段右侧的加号，开始安排这一天"
-          />
         )}
       </div>
     </div>

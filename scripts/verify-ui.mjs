@@ -30,6 +30,7 @@ await page.getByRole('button', { name: '下一周', exact: true }).click();
 assert(await page.locator('.week-day.sel').count() === 1, 'selected day follows week');
 await page.getByRole('button', { name: '回到今天' }).click();
 await page.getByRole('button', { name: '待办', exact: true }).click();
+await page.locator('.task-row.done').waitFor({ state: 'detached' });
 assert(await page.locator('.task-row.done').count() === 0, 'pending filter');
 await page.getByRole('button', { name: '全部', exact: true }).click();
 await page.keyboard.press('Control+k');

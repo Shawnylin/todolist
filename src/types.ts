@@ -44,6 +44,7 @@ export interface TaskList {
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type AccentColor = 'violet' | 'blue' | 'green' | 'rose' | 'amber';
+export type ReasoningEffort = 'low' | 'medium' | 'high';
 export interface AiProfile {
   id: string;
   name: string;
@@ -60,6 +61,8 @@ export interface Settings {
   /** 是否已看过欢迎引导 */
   onboarded: boolean;
   accent?: AccentColor;
+  reasoningEnabled?: boolean;
+  reasoningEffort?: ReasoningEffort;
   aiProfiles?: AiProfile[];
   activeAiProfileId?: string;
 }
@@ -90,7 +93,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   createdAt: number;
-  status?: 'applied' | 'undone' | 'error';
+  status?: 'applied' | 'undone' | 'error' | 'stopped' | 'interrupted';
   changes?: TaskChange[];
 }
 
@@ -102,6 +105,8 @@ export const DEFAULT_SETTINGS: Settings = {
   model: 'deepseek-v4-flash',
   theme: 'system',
   onboarded: false,
+  reasoningEnabled: false,
+  reasoningEffort: 'medium',
 };
 
 export const LIST_COLORS = [

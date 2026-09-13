@@ -1,14 +1,9 @@
 import type { AiPlanTask, Priority, Settings, Task, TimeSlot } from './types';
 import { SLOT_ORDER } from './utils/slot';
 import { activeAi } from './utils/preferences';
-
-export class AiError extends Error {
-  status?: number;
-  constructor(message: string, status?: number) {
-    super(message);
-    this.status = status;
-  }
-}
+import { readChatContent } from './utils/chatStream';
+import { AiError } from './utils/aiError';
+export { AiError } from './utils/aiError';
 
 export function hasAiKey(s: Settings): boolean {
   return !!activeAi(s).apiKey.trim();
@@ -52,6 +47,19 @@ interface ChatOpts {
   temperature?: number;
   signal?: AbortSignal;
   history?: { role: 'user' | 'assistant'; content: string }[];
+  stream?: boolean;
+  reasoningEnabled?: boolean;
+  reasoningEffort?: 'low' | 'medium' | 'high';
+  onContent?: (content: string) => void;
+  onReasoningFallback?: () => void;
+}
+
+function reasoningUnsupported(status: number, detail: string): boolean {
+  return (
+    [400, 404, 422].includes(status) &&
+    /reasoning[_ -]?effort/i.test(detail) &&
+    /(unsupported|not supported|unknown|unrecognized|invalid|not permitted)/i.test(detail)
+  );
 }
 
 export async function chat(
@@ -68,13 +76,8 @@ export async function chat(
   if (opts.signal?.aborted) controller.abort();
   const timer = setTimeout(() => controller.abort(), 45000);
   try {
-    const res = await fetch(apiEndpoint(cfg.baseUrl, 'chat/completions'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${cfg.apiKey.trim()}`,
-      },
-      body: JSON.stringify({
+    const run = async (includeReasoning: boolean): Promise<string> => {
+      const body: Record<string, unknown> = {
         model: cfg.model.trim(),
         messages: [
           { role: 'system', content: system },
@@ -83,26 +86,35 @@ export async function chat(
         ],
         temperature: opts.temperature ?? 0.3,
         max_tokens: opts.maxTokens ?? 700,
-        stream: false,
-      }),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      // 尽量把服务端的错误原因带出来,方便排查
+        stream: opts.stream ?? false,
+      };
+      if (includeReasoning) body.reasoning_effort = opts.reasoningEffort ?? 'medium';
+      const res = await fetch(apiEndpoint(cfg.baseUrl, 'chat/completions'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${cfg.apiKey.trim()}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+      if (res.ok) return readChatContent(res, opts.onContent);
+
       let detail = '';
       try {
-        const body = await res.json();
-        const msg = body?.error?.message;
+        const errorBody = await res.json();
+        const msg = errorBody?.error?.message;
         if (typeof msg === 'string' && msg) detail = `:${msg}`;
       } catch {
         /* ignore */
       }
+      if (includeReasoning && reasoningUnsupported(res.status, detail)) {
+        opts.onReasoningFallback?.();
+        return run(false);
+      }
       throw new AiError(`${friendlyStatus(res.status)}${detail}`, res.status);
-    }
-    const data = await res.json();
-    const content: string = data?.choices?.[0]?.message?.content ?? '';
-    if (!content) throw new AiError('AI 返回内容为空,请重试');
-    return content;
+    };
+    return await run(!!opts.reasoningEnabled);
   } catch (e) {
     if (e instanceof AiError) throw e;
     if (e instanceof DOMException && e.name === 'AbortError') {
