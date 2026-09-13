@@ -203,6 +203,10 @@ try {
       .querySelector('.bottom-nav-item.active .bottom-nav-content')
       .getBoundingClientRect();
     const composer = document.querySelector('.chat-composer').getBoundingClientRect();
+    const navStyle = getComputedStyle(document.querySelector('.bottom-nav'));
+    const indicatorStyle = getComputedStyle(
+      document.querySelector('.bottom-nav > .selection-indicator'),
+    );
     return {
       navBottom: innerHeight - nav.bottom,
       navHeight: nav.height,
@@ -212,13 +216,17 @@ try {
         Math.abs(indicator.x - content.x) < 1 && Math.abs(indicator.y - content.y) < 1,
       composerGap: nav.top - composer.bottom,
       overflow: document.documentElement.scrollWidth - innerWidth,
+      navBackdrop: navStyle.backdropFilter || navStyle.webkitBackdropFilter,
+      indicatorRadius: indicatorStyle.borderRadius,
     };
   });
   assert(geometry.navBottom === 6 && geometry.navHeight === 62, 'mobile navigation sits lower');
   assert(
-    geometry.indicatorWidth === 60 && geometry.indicatorHeight === 52 && geometry.aligned,
-    'selection capsule is aligned at 60 by 52 pixels',
+    geometry.indicatorWidth === 76 && geometry.indicatorHeight === 52 && geometry.aligned,
+    'selection capsule is aligned at 76 by 52 pixels',
   );
+  assert(geometry.indicatorRadius === '999px', 'selection uses a full capsule radius');
+  assert(geometry.navBackdrop.includes('blur(22px)'), 'mobile navigation uses frosted glass blur');
   assert(geometry.composerGap >= 7 && geometry.composerGap <= 10, 'composer aligns above navigation');
   assert(geometry.overflow <= 0, 'mobile plan has no horizontal overflow');
   assert(errors.length === 0, 'no browser runtime errors');
