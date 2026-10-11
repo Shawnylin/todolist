@@ -125,7 +125,7 @@ try {
           const first = box({ today: '.week-strip', plan: '.chat-workspace', insights: '.insight-summary', settings: '.settings-card' }[route]);
           const heading = box('h1');
           const css = getComputedStyle(document.querySelector('.main-inner'));
-          const out = { route, content, first, heading, gutter: Number.parseFloat(css.paddingLeft), overflow: document.documentElement.scrollWidth > innerWidth, titleSize: getComputedStyle(document.querySelector('h1')).fontSize };
+          const out = { route, content, first, heading, gutter: Number.parseFloat(css.paddingLeft), topInset: Number.parseFloat(css.paddingTop), overflow: document.documentElement.scrollWidth > innerWidth, titleSize: getComputedStyle(document.querySelector('h1')).fontSize };
           if (route === 'plan') out.composer = box('.chat-composer');
           if (route === 'today') {
             out.search = box('.schedule-search'); out.all = box('.day-filters button.active'); out.toolbar = box('.day-toolbar');
@@ -157,6 +157,8 @@ try {
         if (route === 'insights') check(await page.locator('.insights-view header').getByRole('button', { name: '设置', exact: true }).count() === 0, `${width} ${theme}: insights has no settings button`);
         if (layout.nav) {
           const { nav, indicator, active, outerRadius, innerRadius } = layout.nav;
+          check(layout.topInset === 8, `${width} ${theme} ${route}: compact page top`);
+          check(Math.abs(844 - nav.bottom - 8) < 1, `${width} ${theme} ${route}: compact navigation bottom`);
           check(Math.abs(indicator.x - active.x) < 1 && Math.abs(indicator.width - active.width) < 1 && Math.abs(indicator.y - active.y) < 1, `${width} ${theme} ${route}: indicator matches selected item`);
           check(Math.abs(indicator.y - nav.y - (nav.bottom - indicator.bottom)) < 1, `${width} ${theme} ${route}: equal vertical nav insets`);
           check(Math.abs(outerRadius - innerRadius - (indicator.y - nav.y)) < 1, `${width} ${theme} ${route}: concentric nav corners`);
@@ -167,6 +169,22 @@ try {
       }
       check(edges.every((x) => Math.abs(x - edges[0]) < 1), `${width} ${theme}: all page left edges match`);
     }
+  }
+  // Emulate a home-indicator inset: the capsule's own inner space also protects labels.
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const route of ['today', 'plan', 'insights', 'settings']) {
+    await navigate(route);
+    await page.evaluate(() => document.documentElement.style.setProperty('--mobile-safe-bottom', '34px'));
+    const layout = await page.evaluate(() => {
+      const nav = document.querySelector('.bottom-nav').getBoundingClientRect();
+      const labelBottom = Math.max(...[...document.querySelectorAll('.bottom-nav-label')].map((label) => label.getBoundingClientRect().bottom));
+      const composer = document.querySelector('.chat-composer')?.getBoundingClientRect();
+      return { bottomGap: innerHeight - nav.bottom, labelGap: innerHeight - labelBottom, composerGap: composer ? nav.top - composer.bottom : null };
+    });
+    check(Math.abs(layout.bottomGap - 22) < 1, `${route}: home-indicator space is not reserved twice`);
+    check(layout.labelGap >= 34, `${route}: navigation labels clear the home indicator`);
+    if (route === 'plan') check(Math.abs(layout.composerGap - 16) < 1, 'home-indicator plan composer clears navigation');
+    if (route === 'today') await page.screenshot({ path: 'artifacts/compact-today-home-indicator.png' });
   }
   check(errors.length === 0, 'no browser runtime errors');
   await writeFile('artifacts/layout-insights-report.json', JSON.stringify({ checks, errors, layouts }, null, 2));

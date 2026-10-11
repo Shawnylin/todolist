@@ -535,10 +535,13 @@
 }
 @media (max-width: 959px) {
   :root {
+    --page-top: 8px;
+    --mobile-safe-bottom: env(safe-area-inset-bottom, 0px);
     --mobile-nav-height: 64px;
     --mobile-nav-inset: 5px;
     --mobile-nav-radius: 32px;
-    --mobile-nav-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    /* The capsule already leaves 13px below its labels for the home indicator. */
+    --mobile-nav-bottom: max(8px, calc(var(--mobile-safe-bottom) - 12px));
     --mobile-nav-clearance: calc(var(--mobile-nav-height) + var(--mobile-nav-bottom) + 16px);
   }
   .bottom-nav {
