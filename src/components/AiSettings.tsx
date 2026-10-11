@@ -51,9 +51,6 @@ export function AiSettings() {
       </button>
       <Expand open={open}>
         <div id="ai-configurations" className="ai-configurations">
-          <p className="settings-card-desc">
-            支持 OpenAI 兼容接口。密钥保存在本机，仅发送至对应配置的 API 地址，不包含在数据导出中。
-          </p>
           {profiles.map((profile) => (
             <div
               className={`ai-profile ${profile.id === current.id ? 'selected' : ''}`}
@@ -76,7 +73,7 @@ export function AiSettings() {
                   onClick={() => setEditing((id) => (id === profile.id ? null : profile.id))}
                 >
                   <strong>{profile.name || '未命名配置'}</strong>
-                  <small>{profile.id === current.id ? '当前使用' : '点击编辑'}</small>
+                  {profile.id === current.id && <small>当前使用</small>}
                   <ChevronDown size={16} />
                 </button>
                 <button
@@ -197,7 +194,7 @@ function ProfileEditor({
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            placeholder="填写此服务的 API Key"
+            placeholder="API Key"
             value={profile.apiKey}
             onChange={(e) => onChange({ apiKey: e.target.value.trim() })}
           />
@@ -242,13 +239,13 @@ function ProfileEditor({
         </label>
       )}
       <label className="field">
-        <span className="field-label">模型名称（可手动输入）</span>
+        <span className="field-label">模型</span>
         <input
           className="field-input"
           autoCapitalize="none"
           spellCheck={false}
           value={profile.model}
-          placeholder="选择或填写模型 ID"
+          placeholder="模型 ID"
           onChange={(e) => onChange({ model: e.target.value.trim() })}
         />
       </label>

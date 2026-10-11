@@ -1832,14 +1832,6 @@ textarea::placeholder {
   background: var(--accent);
   color: #fff;
 }
-.week-dot {
-  position: absolute;
-  bottom: 2px;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent);
-}
 
 /* ---------- 时段分组 ---------- */
 .slot-section {
@@ -1924,16 +1916,6 @@ textarea::placeholder {
 }
 .add-sheet-input:focus {
   border-color: var(--accent);
-}
-
-/* 设置页返回按钮 */
-.settings-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.back-btn {
-  margin-left: -6px;
 }
 
 .meta-chip.slot {
@@ -2087,61 +2069,6 @@ textarea::placeholder {
 }
 
 /* ---------- 洞察页 ---------- */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.stat-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-1);
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.stat-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 10px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 6px;
-}
-.stat-icon.ok {
-  background: color-mix(in srgb, var(--success) 15%, transparent);
-  color: var(--success);
-}
-.stat-icon.accent {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.stat-icon.target {
-  background: color-mix(in srgb, #f5a524 15%, transparent);
-  color: #d98a0b;
-}
-.stat-icon.flame {
-  background: color-mix(in srgb, #e93d82 15%, transparent);
-  color: #e93d82;
-}
-
-.stat-num {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
-}
-.stat-label {
-  font-size: 12px;
-  color: var(--text-2);
-}
-
 .chart-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -2174,169 +2101,7 @@ textarea::placeholder {
   padding: 18px 0;
 }
 
-/* 柱状图 */
-.bar-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  height: 150px;
-}
-
-.bar-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  height: 100%;
-}
-.bar-val {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--accent);
-}
-.bar-val.zero {
-  color: var(--text-3);
-}
-.bar-track {
-  flex: 1;
-  width: 100%;
-  max-width: 26px;
-  display: flex;
-  align-items: flex-end;
-  background: var(--surface-2);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.bar-fill {
-  width: 100%;
-  border-radius: 8px;
-  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 55%, #fff));
-  min-height: 4px;
-  animation: barGrow 0.5s cubic-bezier(0.2, 0.8, 0.3, 1);
-}
-.bar-fill.today {
-  background: linear-gradient(180deg, #e93d82, #6e56cf);
-}
-.bar-label {
-  font-size: 12px;
-  color: var(--text-3);
-}
-.bar-label.today {
-  color: var(--accent);
-  font-weight: 800;
-}
-
-@keyframes barGrow {
-  from {
-    height: 0;
-  }
-}
-
-/* 环形图 */
-.donut-wrap {
-  position: relative;
-  width: 148px;
-  margin: 0 auto 12px;
-}
-.donut {
-  display: block;
-  width: 100%;
-}
-.donut-center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-.donut-num {
-  font-size: 22px;
-  font-weight: 800;
-  line-height: 1.1;
-}
-.donut-label {
-  font-size: 11px;
-  color: var(--text-3);
-}
-
-.donut-legend {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-.donut-legend li {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-.legend-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-  flex: none;
-}
-.legend-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--text-2);
-}
-.legend-count {
-  font-weight: 700;
-}
-
-/* 优先级条 */
-.pri-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-.pri-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.pri-label {
-  width: 26px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-2);
-}
-.pri-track {
-  flex: 1;
-  height: 10px;
-  border-radius: 5px;
-  background: var(--surface-2);
-  overflow: hidden;
-}
-.pri-fill {
-  height: 100%;
-  border-radius: 5px;
-  animation: barGrow 0.5s ease;
-}
-.pri-val {
-  width: 26px;
-  text-align: right;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-2);
-}
-
 /* 已完成归档 sheet */
-.completed-sheet {
-  max-width: 640px;
-}
 .sheet-title {
   font-size: 16px;
   font-weight: 800;
@@ -2345,19 +2110,4 @@ textarea::placeholder {
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-/* 桌面端图表并排 */
-@media (min-width: 960px) {
-  .chart-row {
-    display: flex;
-    gap: 14px;
-  }
-  .chart-row .chart-card {
-    flex: 1;
-    margin-bottom: 14px;
-  }
-  .stat-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
 }

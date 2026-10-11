@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
+  CalendarDays,
   Moon,
   Plus,
   RotateCcw,
@@ -141,24 +142,14 @@ export function TodayView({ openDetail, openSearch }: Props) {
 
   const visibleTasks = (tasks: Task[]) =>
     tasks.filter((t) => filter === 'all' || (filter === 'done' ? t.done : !t.done));
-  const title = isTodaySel ? '今天' : formatDue(selected, today);
-
   return (
-    <div className="task-view">
-      <header className="view-header today-header">
-        <div className="view-header-text">
-          <h1 className="view-title">{title}</h1>
-        </div>
-        <div className="view-header-actions">
-          <button
-            type="button"
-            className="icon-btn"
-            title="搜索"
-            aria-label="搜索"
-            onClick={openSearch}
-          >
-            <Search size={17} />
-          </button>
+    <div className="task-view today-view">
+      <header className="calendar-heading">
+        <h1>一周安排</h1>
+        <div className="calendar-actions">
+          <span>
+            {days[0].iso.slice(5).replace('-', '/')} — {days[6].iso.slice(5).replace('-', '/')}
+          </span>
           {!isTodaySel && (
             <button type="button" className="btn btn-secondary sm back-today" onClick={backToToday}>
               <RotateCcw size={13} />
@@ -167,13 +158,6 @@ export function TodayView({ openDetail, openSearch }: Props) {
           )}
         </div>
       </header>
-
-      <div className="calendar-heading">
-        <h2>一周安排</h2>
-        <span>
-          {days[0].iso.slice(5).replace('-', '/')} — {days[6].iso.slice(5).replace('-', '/')}
-        </span>
-      </div>
 
       {/* 周历条:周日-周六,可点击选日期,左右滑动换周 */}
       <div
@@ -200,6 +184,7 @@ export function TodayView({ openDetail, openSearch }: Props) {
               type="button"
               key={d.iso}
               aria-label={d.iso}
+              aria-current={d.iso === today ? 'date' : undefined}
               aria-pressed={selected === d.iso}
               className={`week-day ${selected === d.iso ? 'sel' : ''} ${d.iso === today ? 'today' : ''}`}
               onClick={() => {
@@ -212,7 +197,6 @@ export function TodayView({ openDetail, openSearch }: Props) {
             >
               <span className="week-wd">{d.wd}</span>
               <span className="week-num">{d.num}</span>
-              {d.iso === today && !(selected === d.iso) && <span className="week-dot" />}
             </button>
           ))}
         </div>
@@ -226,8 +210,11 @@ export function TodayView({ openDetail, openSearch }: Props) {
           <h2>
             我的日程 <span>{allTasks.length}</span>
           </h2>
-          <div className="day-filters" aria-label="任务状态筛选">
+          <div className="day-filters" role="group" aria-label="任务状态筛选">
             <SelectionIndicator selector="button.active" />
+            <button type="button" className="schedule-search" aria-label="搜索" onClick={openSearch}>
+              <Search size={17} />
+            </button>
             {(
               [
                 { key: 'all', label: '全部' },
@@ -258,13 +245,14 @@ export function TodayView({ openDetail, openSearch }: Props) {
         ))}
 
         {visibleTasks(bySlot.none).length > 0 && (
-          <div className="section">
-            <div className="section-header">
-              <span className="section-label">未安排</span>
-              <span className="section-count">{bySlot.none.length}</span>
+          <section className="section slot-section period-none">
+            <div className="slot-head">
+              <span className="slot-icon slot-none"><CalendarDays size={15} /></span>
+              <span className="slot-label">未安排</span>
+              <span className="slot-count">{visibleTasks(bySlot.none).length}</span>
             </div>
             <TaskList tasks={visibleTasks(bySlot.none)} onOpen={openDetail} />
-          </div>
+          </section>
         )}
       </div>
     </div>
@@ -318,13 +306,6 @@ function SlotSection({
       <div className="slot-head">
         <span className={`slot-icon slot-${slot}`}>{SLOT_ICONS[slot]}</span>
         <span className="slot-label">{SLOT_LABEL[slot]}</span>
-        <span className="slot-time">
-          {slot === 'morning'
-            ? '开启新的一天'
-            : slot === 'afternoon'
-              ? '留一段专注时间'
-              : '收获与放松'}
-        </span>
         {pending > 0 && <span className="slot-count">{pending}</span>}
         <button
           type="button"
@@ -339,8 +320,8 @@ function SlotSection({
         </button>
       </div>
       {tasks.length === 0 && (
-        <button type="button" className="slot-empty" onClick={() => setAddOpen(true)}>
-          <Plus size={16} /> 留白也很好，或添加一件事
+        <button type="button" className="slot-empty" aria-label={`在${SLOT_LABEL[slot]}添加任务`} onClick={() => setAddOpen(true)}>
+          <Plus size={16} /> 添加任务
         </button>
       )}
       <TaskList tasks={tasks} onOpen={onOpen} />
@@ -380,7 +361,6 @@ function SlotSection({
                     }
                   }}
                 />
-                <p className="input-hint">支持「明天 9点 开会 p1」「每天 阅读 @学习」</p>
                 <button
                   type="button"
                   className="btn btn-primary btn-block"

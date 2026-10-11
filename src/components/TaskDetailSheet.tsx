@@ -81,7 +81,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
 
   const onAiBreakdown = async () => {
     if (!hasAiKey(state.settings)) {
-      push('请先在「设置 → AI 助手」填写 DeepSeek API Key');
+      push('请先在设置中连接 AI');
       return;
     }
     setAiBusy(true);
@@ -351,7 +351,7 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
             </div>
             <textarea
               className="notes-input"
-              placeholder="补充细节、链接、想法…"
+              placeholder="添加备注"
               value={task.notes}
               rows={3}
               onChange={(e) => patch({ notes: e.target.value })}
@@ -364,7 +364,6 @@ export function TaskDetailSheet({ taskId, onClose }: { taskId: string; onClose: 
               <Sparkles size={17} />
               <span>AI 助手</span>
             </div>
-            <p className="ai-card-text">让 DeepSeek 把这个任务拆解成可执行的小步骤,帮你理清思路。</p>
             <button
               type="button"
               className="btn btn-ai"

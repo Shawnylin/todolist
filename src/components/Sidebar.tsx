@@ -72,7 +72,6 @@ export function Sidebar({ route, navigate, todayCount }: Props) {
       </nav>
 
       <div className="sidebar-footer">
-        <div className="sidebar-note"><Sun size={28} /><strong>每一小步，都算数。</strong><span>安排生活，也为自己留白。</span></div>
         <NavItem
           active={route.view === 'settings'}
           icon={<Settings size={19} />}

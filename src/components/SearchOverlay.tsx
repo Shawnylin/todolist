@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft, Search, X } from 'lucide-react';
 import { useApp } from '../store';
 import { TaskRow } from './TaskRow';
 import { Empty } from './Empty';
@@ -54,13 +54,14 @@ export function SearchOverlay({
           <input
             ref={inputRef}
             type="search"
+            aria-label="搜索任务"
             placeholder="搜索任务、备注或标签…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
           {q && (
             <button type="button" className="icon-btn" onClick={() => setQ('')} aria-label="清空">
-              ✕
+              <X size={18} />
             </button>
           )}
         </div>
@@ -69,10 +70,9 @@ export function SearchOverlay({
             <Empty
               icon={<Search size={30} />}
               title="搜索全部任务"
-              hint="支持按标题、备注、标签搜索"
             />
           ) : results.length === 0 ? (
-            <Empty icon={<Search size={30} />} title="没有找到相关任务" hint="换个关键词试试" />
+            <Empty icon={<Search size={30} />} title="无搜索结果" />
           ) : (
             <div className="task-list">
               {results.map((t) => (

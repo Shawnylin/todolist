@@ -166,7 +166,8 @@ const nav = async (name) => {
   await page.waitForTimeout(450);
 };
 await nav('洞察');
-assert((await page.locator('.day-overview').count()) === 1, 'Insights contains progress card');
+assert((await page.locator('.insight-summary').count()) === 1, 'Insights contains completion comparison');
+assert((await page.locator('.day-overview').count()) === 0, 'redundant progress card removed');
 await page.goto('http://127.0.0.1:5173/#/settings');
 await page.locator('.theme-colors').waitFor();
 await page.locator('.theme-color').nth(1).click();

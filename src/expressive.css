@@ -14,6 +14,12 @@
   --on-accent: #fff;
   --on-container: #35234f;
   --radius: 24px;
+  --page-gutter: 24px;
+  --page-top: 28px;
+  --page-gap: 16px;
+  --card-inset: 24px;
+  --card-radius: 26px;
+  --page-title-size: 32px;
   --shadow-1: none;
   --shadow-2: 0 20px 64px #24152f26;
   --motion-spatial: 450ms cubic-bezier(0.2, 0.8, 0.2, 1.12);
@@ -62,16 +68,19 @@ button:disabled {
 }
 .main-inner {
   max-width: 1080px;
-  padding: 0 24px;
+  padding: var(--page-top) var(--page-gutter) 24px;
   animation: pageEnter 350ms cubic-bezier(0.2, 0, 0, 1);
 }
 .view-header {
-  padding: 32px 0 24px;
+  align-items: center;
+  min-height: 68px;
+  padding: 0 0 24px;
   background: var(--bg);
   position: static;
 }
 .view-title {
-  font-size: 36px;
+  font-size: var(--page-title-size);
+  line-height: 44px;
   font-weight: 650;
   letter-spacing: -0.04em;
 }
@@ -86,6 +95,10 @@ button:disabled {
 }
 .view-header-actions .icon-btn {
   background: var(--surface-2);
+}
+.view-header-actions {
+  align-items: center;
+  padding-top: 0;
 }
 .btn {
   min-height: 44px;
@@ -109,74 +122,13 @@ button:disabled {
   color: var(--on-container);
   border-color: transparent;
 }
-.day-overview {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  background: var(--accent-soft);
-  color: var(--on-container);
-  padding: 32px;
-  border-radius: 32px;
-  margin-bottom: 28px;
-}
-.eyebrow {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  opacity: 0.75;
-}
-.day-overview h2 {
-  font-size: clamp(21px, 2.2vw, 28px);
-  line-height: 1.5;
-  font-weight: 600;
-  margin: 10px 0 8px;
-}
-.day-overview p {
-  margin: 0;
-  font-size: 13px;
-}
-.day-progress {
-  position: relative;
-  width: 104px;
-  height: 104px;
-  flex: none;
-}
-.day-progress svg {
-  width: 100%;
-  transform: rotate(-90deg);
-  fill: none;
-  stroke-width: 7;
-}
-.progress-track {
-  stroke: var(--accent);
-  opacity: 0.14;
-}
-.progress-value {
-  stroke: var(--accent);
-  stroke-linecap: round;
-  transition: stroke-dashoffset 550ms cubic-bezier(0.2, 0, 0, 1);
-}
-.day-progress > span {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  font-weight: 650;
-}
-.day-progress small {
-  font-size: 12px;
-  margin: 8px 0 0 2px;
-}
 .calendar-heading,
 .day-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 4px 14px;
+  margin: 0 0 var(--page-gap);
 }
 .calendar-heading h2,
 .day-toolbar h2 {
@@ -238,7 +190,7 @@ button:disabled {
   background: var(--surface-2);
   border-radius: 26px;
   padding: 16px;
-  margin-bottom: 14px;
+  margin-bottom: var(--page-gap);
 }
 .slot-head {
   padding: 0 0 12px;
@@ -345,14 +297,32 @@ button:disabled {
 .plan-results,
 .stat-card {
   border: 0;
-  border-radius: 26px;
+  border-radius: var(--card-radius);
   box-shadow: none;
   background: var(--surface-2);
 }
 .settings-card,
 .chart-card,
 .plan-input-card {
-  padding: 24px;
+  padding: var(--card-inset);
+}
+.settings-card {
+  margin-bottom: var(--page-gap);
+}
+.settings-card-head {
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 52px;
+  margin-bottom: var(--page-gap);
+}
+.settings-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.view-body,
+.settings-page {
+  padding-bottom: 0;
 }
 .field-input,
 .add-sheet-input {
@@ -366,6 +336,10 @@ button:disabled {
 .seg-btn {
   min-height: 44px;
   border-radius: 99px;
+  min-width: 0;
+  gap: 4px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 .plan-textarea {
   min-height: 150px;
@@ -421,23 +395,6 @@ button:disabled {
   padding: 48px;
   color: var(--text-2);
 }
-.sidebar-note {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 24px 18px;
-  margin-bottom: 22px;
-  border-radius: 24px;
-  background: var(--surface-2);
-  color: var(--accent);
-}
-.sidebar-note strong {
-  font-size: 14px;
-}
-.sidebar-note span {
-  font-size: 11px;
-  color: var(--text-2);
-}
 @keyframes pageEnter {
   from {
     opacity: 0;
@@ -449,6 +406,9 @@ button:disabled {
   }
 }
 @media (min-width: 960px) {
+  :root {
+    --page-gutter: 40px;
+  }
   .sidebar {
     width: 248px;
     border: 0;
@@ -480,12 +440,13 @@ button:disabled {
     border: 0;
   }
   .main {
+    padding-bottom: 0;
     margin: 12px 12px 12px 0;
     border-radius: 32px;
     background: var(--surface);
   }
   .main-inner {
-    padding: 6px 40px 32px;
+    padding: var(--page-top) var(--page-gutter) 24px;
   }
   .view-header {
     background: transparent;
@@ -495,35 +456,19 @@ button:disabled {
   }
 }
 @media (max-width: 599px) {
-  .main-inner {
-    padding: 0 16px;
+  :root {
+    --page-gutter: 16px;
+    --page-top: 24px;
+    --card-inset: 18px;
+    --page-title-size: 30px;
   }
   .view-header {
-    padding: 24px 0 20px;
+    min-height: 64px;
+    padding: 0 0 24px;
   }
   .view-title {
-    font-size: 30px;
-  }
-  .day-overview {
-    padding: 24px 20px;
-    gap: 12px;
-    border-radius: 28px;
-  }
-  .day-progress {
-    width: 78px;
-    height: 78px;
-  }
-  .day-progress > span {
-    font-size: 23px;
-  }
-  .day-overview h2 {
-    font-size: 19px;
-  }
-  .day-overview p {
-    font-size: 12px;
-  }
-  .eyebrow {
-    font-size: 8px;
+    font-size: var(--page-title-size);
+    line-height: 40px;
   }
   .week-strip {
     padding: 8px 2px;
@@ -671,8 +616,8 @@ html {
 .plan-chat-page {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 62px);
-  min-height: 620px;
+  height: calc(100dvh - var(--page-top) - 48px);
+  min-height: 0;
 }
 .chat-workspace {
   display: grid;
@@ -992,13 +937,6 @@ html {
 .plan-list-toggle {
   display: none;
 }
-@media (min-width: 960px) {
-  .main:has(.plan-chat-page) .main-inner {
-    max-width: 1300px;
-    padding-left: 28px;
-    padding-right: 28px;
-  }
-}
 @media (max-width: 1199px) {
   .chat-workspace {
     grid-template-columns: minmax(0, 1fr);
@@ -1016,7 +954,7 @@ html {
     min-height: 480px;
   }
   .plan-chat-page .view-title {
-    font-size: 28px;
+    font-size: var(--page-title-size);
   }
   .plan-chat-page .view-subtitle {
     font-size: 11px;

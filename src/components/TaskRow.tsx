@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import { CheckSquare, Clock, Flag, Repeat, Trash2 } from 'lucide-react';
+import { CheckCircle2, CheckSquare, Clock, Flag, Repeat, Trash2 } from 'lucide-react';
 import { AnimatedCheck, AnimatedTaskTitle } from './AnimatedCheck';
 import type { Task } from '../types';
 import { useApp } from '../store';
 import { formatDueShort, isOverdue, repeatLabel } from '../utils/date';
+import { completionDate } from '../utils/insights';
 import { SLOT_LABEL } from '../utils/slot';
 import { useToast } from './Toast';
 
@@ -13,10 +14,12 @@ const PRIORITY_COLOR: Record<number, string> = { 1: '#E5484D', 2: '#F76B15', 3: 
 export function TaskRow({
   task,
   showSlot = false,
+  showCompletion = false,
   onOpen,
 }: {
   task: Task;
   showSlot?: boolean;
+  showCompletion?: boolean;
   onOpen: () => void;
 }) {
   const { dispatch } = useApp();
@@ -31,6 +34,7 @@ export function TaskRow({
 
   const overdue = isOverdue(task);
   const doneSubs = task.subtasks.filter((s) => s.done).length;
+  const completedOn = showCompletion ? completionDate(task) : undefined;
 
   const toggle = () => dispatch({ type: 'toggleTask', id: task.id });
 
@@ -156,22 +160,24 @@ export function TaskRow({
             task.tags.length > 0 ||
             task.subtasks.length > 0 ||
             task.repeat ||
+            showCompletion ||
             (showSlot && task.slot)) && (
             <div className="task-meta">
-              {showSlot && task.slot && (
+              {showCompletion && <span className="meta-chip"><CheckCircle2 size={12} />{completedOn ? `${formatDueShort(completedOn)}完成` : '日期未记录'}</span>}
+              {!showCompletion && showSlot && task.slot && (
                 <span className="meta-chip slot">
                   <Clock size={12} />
                   {SLOT_LABEL[task.slot]}
                 </span>
               )}
-              {task.due && (
+              {!showCompletion && task.due && (
                 <span className={`meta-chip due ${overdue ? 'overdue' : ''}`}>
                   <CalendarIcon />
                   {formatDueShort(task.due)}
                   {task.dueTime ? ` ${task.dueTime}` : ''}
                 </span>
               )}
-              {!task.due && task.dueTime && (
+              {!showCompletion && !task.due && task.dueTime && (
                 <span className="meta-chip due">
                   <Clock size={12} />
                   {task.dueTime}

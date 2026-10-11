@@ -7,6 +7,7 @@ import { ToastProvider } from './components/Toast';
 import './styles.css';
 import './expressive.css';
 import './preferences.css';
+import './insights.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

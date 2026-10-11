@@ -4,13 +4,11 @@ import { AiSettings } from './AiSettings';
 import { useRef, useState } from 'react';
 import { parseBackup } from '../utils/backup';
 import {
-  ArrowLeft,
   BookOpen,
   Check,
   ChevronDown,
   Database,
   Download,
-  Info,
   Monitor,
   Moon,
   Palette,
@@ -19,7 +17,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import type { Settings, Task, TaskList, ViewRoute } from '../types';
+import type { Settings, Task, TaskList } from '../types';
 import { INBOX_ID } from '../types';
 import { useApp } from '../store';
 import { todayISO } from '../utils/date';
@@ -27,12 +25,11 @@ import { useToast } from './Toast';
 import { Modal } from './Modal';
 
 interface Props {
-  navigate: (r: ViewRoute) => void;
   installAvailable: boolean;
   onInstall: () => void;
 }
 
-export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
+export function SettingsPage({ installAvailable, onInstall }: Props) {
   const { state, dispatch } = useApp();
   const { push } = useToast();
   const [tutorialOpen, setTutorialOpen] = useState(false);
@@ -44,10 +41,6 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
 
   const s = state.settings;
   const setS = (patch: Partial<Settings>) => dispatch({ type: 'setSettings', patch });
-
-  const back = () => {
-    navigate({ view: 'today' });
-  };
 
   const onExport = () => {
     const data = {
@@ -99,10 +92,7 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
   return (
     <div className="settings-page">
       <header className="view-header">
-        <div className="view-header-text settings-header">
-          <button type="button" className="icon-btn back-btn" onClick={back} aria-label="返回">
-            <ArrowLeft size={18} />
-          </button>
+        <div className="view-header-text">
           <h1 className="view-title">设置</h1>
         </div>
       </header>
@@ -112,10 +102,8 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
       {/* 外观 */}
       <section className="settings-card">
         <div className="settings-card-head">
-          <div className="settings-card-title">
-            <Palette size={16} />
-            外观
-          </div>
+          <span className="settings-entry-icon"><Palette size={21} /></span>
+          <h2 className="settings-card-title">外观</h2>
         </div>
         <div className="segmented">
           <SelectionIndicator selector=".seg-btn.active" />
@@ -130,6 +118,7 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
               type="button"
               key={o.key}
               className={`seg-btn ${s.theme === o.key ? 'active' : ''}`}
+              aria-pressed={s.theme === o.key}
               onClick={() => setS({ theme: o.key })}
             >
               {o.icon}
@@ -167,14 +156,9 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
       {/* 数据 */}
       <section className="settings-card">
         <div className="settings-card-head">
-          <div className="settings-card-title">
-            <Database size={16} />
-            数据
-          </div>
+          <span className="settings-entry-icon"><Database size={21} /></span>
+          <h2 className="settings-card-title">数据</h2>
         </div>
-        <p className="settings-card-desc">
-          所有数据都保存在本机浏览器(IndexedDB)中,离线也能使用。建议定期导出备份。
-        </p>
         <div className="settings-row-actions data-actions">
           <button type="button" className="btn btn-secondary" onClick={onExport}>
             <Download size={15} /> 导出
@@ -220,7 +204,6 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
           </span>
           <span>
             <strong>使用教程</strong>
-            <small>安装应用 · 快速录入 · 聊天操作</small>
           </span>
           <ChevronDown size={18} className={tutorialOpen ? 'chevron open' : 'chevron'} />
         </button>
@@ -234,24 +217,17 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
               </button>
             ) : (
               <p className="settings-card-desc">
-                iPhone：在 Safari 中打开，点击「分享 → 添加到主屏幕」。Chrome /
-                Edge：在浏览器菜单中选择「安装应用」。
+                Safari：分享 → 添加到主屏幕。Chrome / Edge：菜单 → 安装应用。
               </p>
             )}
             <h3>快速录入技巧</h3>
             <ul className="tips-list">
-              <li>点击时段的加号添加任务，勾选后任务会平滑移到分组底部。</li>
               <li>
-                <code>每天 9点 阅读 @学习 p1</code> 可同时设置时间、标签、优先级与重复规则。
+                <code>每天 9点 阅读 @学习 p1</code>
               </li>
-              <li>计划页按回车发送，Shift + 回车换行。中文输入法选词不会误发送。</li>
-              <li>用「新建对话」开始新话题，通过「历史对话」继续以前的聊天；任务列表始终共享。</li>
-              <li>在 AI 配置中保存多套服务，通过圆角勾选框切换当前使用的配置。</li>
+              <li>搜索：Ctrl / ⌘ + K</li>
+              <li>聊天：回车发送，Shift + 回车换行</li>
             </ul>
-            <p className="settings-card-foot">
-              <Info size={13} />
-              离线可管理任务；AI 聊天需要网络。模型获取失败时可手动填写模型名称。
-            </p>
           </div>
         </Expand>
       </section>
@@ -260,7 +236,7 @@ export function SettingsPage({ navigate, installAvailable, onInstall }: Props) {
         {confirmClear && (
           <Modal
             title="清空所有数据?"
-            body="将删除全部任务和聊天记录(API Key 等设置保留),且无法恢复。导出仅备份任务和清单。"
+            body="永久删除全部任务和聊天记录，保留设置。无法恢复。"
             confirmLabel="全部清空"
             danger
             onCancel={() => setConfirmClear(false)}

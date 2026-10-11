@@ -22,7 +22,7 @@ await page.getByRole('button', { name: '标记为完成', exact: true }).first()
 await page.getByRole('button', { name: '标记为未完成', exact: true }).click();
 await page.getByRole('button', { name: '标记为完成', exact: true }).first().click();
 await page.reload();
-await page.getByRole('heading', { name: '今天', exact: true }).waitFor();
+await page.getByRole('heading', { name: '一周安排', exact: true }).waitFor();
 const tasks = await page.evaluate(async () => (await import('/src/db.ts')).loadAll().then(s => s.tasks));
 assert(tasks.length === 4, 'one recurring successor, persisted');
 assert(tasks.some(t => t.dueTime === '09:00' && t.repeat), 'time and repeat preserved');

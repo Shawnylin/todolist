@@ -47,7 +47,7 @@ export function BottomNav({
     },
   ];
   return (
-    <nav className="bottom-nav">
+    <nav className="bottom-nav" aria-label="主导航">
       <SelectionIndicator selector=".bottom-nav-item.active .bottom-nav-content" />
       {[...items.slice(1), items[0]].map((it) => (
         <button

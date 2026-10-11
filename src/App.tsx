@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { Overlay, Panel } from './components/Motion';
 import { registerSW } from 'virtual:pwa-register';
-import { CalendarDays, CheckCircle2, KeyRound, Sun } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Sun } from 'lucide-react';
 import type { ViewRoute } from './types';
 import { useApp } from './store';
 import { todayISO } from './utils/date';
@@ -123,17 +123,16 @@ export default function App() {
 
       <main className="main">
         {storageError && <div className="storage-error" role="alert">{storageError}</div>}
-        {!hydrated ? <div className="loading-state" role="status">{storageError ? '数据尚未加载，请刷新重试。' : '正在整理你的清单…'}</div> : <AnimatePresence mode="wait" initial={false} custom={direction}><motion.div className="main-inner" key={route.view} custom={direction} variants={{ enter: (d: number) => ({ opacity: 0, x: d * 18 }), active: { opacity: 1, x: 0 }, leave: (d: number) => ({ opacity: 0, x: -d * 18 }) }} initial="enter" animate="active" exit="leave" transition={{ duration: reduced ? 0 : .16, ease: [.2, 0, 0, 1] }}>
+        {!hydrated ? <div className="loading-state" role="status">{storageError ? '加载失败，请刷新' : '加载中…'}</div> : <AnimatePresence mode="wait" initial={false} custom={direction}><motion.div className="main-inner" key={route.view} custom={direction} variants={{ enter: (d: number) => ({ opacity: 0, x: d * 18 }), active: { opacity: 1, x: 0 }, leave: (d: number) => ({ opacity: 0, x: -d * 18 }) }} initial="enter" animate="active" exit="leave" transition={{ duration: reduced ? 0 : .16, ease: [.2, 0, 0, 1] }}>
           {route.view === 'today' && (
             <TodayView openDetail={setDetailId} openSearch={() => setSearchOpen(true)} />
           )}
           {route.view === 'plan' && <PlanView navigate={navigate} openDetail={setDetailId} />}
           {route.view === 'insights' && (
-            <InsightsView navigate={navigate} openDetail={setDetailId} />
+            <InsightsView openDetail={setDetailId} />
           )}
           {route.view === 'settings' && (
             <SettingsPage
-              navigate={navigate}
               installAvailable={!!installEvt}
               onInstall={onInstall}
             />
@@ -161,38 +160,28 @@ function WelcomeModal({ onDone }: { onDone: () => void }) {
   const features = [
     {
       icon: <Sun size={17} />,
-      title: '今天:三个时段,一屏搞定',
-      desc: '早上 / 下午 / 晚上分区管理,直接在时段下添加、完成与撤销,还能翻周历看任意一天。',
+      title: '日程',
     },
     {
       icon: <CalendarDays size={17} />,
-      title: '计划:聊天就能调整安排',
-      desc: '和 AI 连续对话，直接新增、改期、完成或删除任务，每次操作都有回执并可撤销。',
+      title: 'AI 计划',
     },
     {
       icon: <CheckCircle2 size={17} />,
-      title: '洞察:看见你的进展',
-      desc: '近 7 天完成、清单分布、优先级、连续打卡等统计图表,一目了然。',
-    },
-    {
-      icon: <KeyRound size={17} />,
-      title: 'DeepSeek AI 助手(可选)',
-      desc: '在设置中填入自己的 API Key(推荐 deepseek-v4-flash),解锁更聪明的计划解析。',
+      title: '洞察',
     },
   ];
   return (
     <Overlay className="modal-overlay welcome-overlay">
       <Panel className="welcome-modal" label="欢迎使用拾光清单">
         <AppLogo size={56} />
-        <h2 className="welcome-title">欢迎使用拾光清单</h2>
-        <p className="welcome-sub">一个漂亮、好用的移动端待办应用</p>
+        <h2 className="welcome-title">拾光清单</h2>
         <ul className="welcome-features">
           {features.map((f) => (
             <li key={f.title}>
               <span className="welcome-f-icon">{f.icon}</span>
               <div>
                 <div className="welcome-f-title">{f.title}</div>
-                <div className="welcome-f-desc">{f.desc}</div>
               </div>
             </li>
           ))}

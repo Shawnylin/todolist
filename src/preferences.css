@@ -171,6 +171,7 @@
 .settings-entry strong {
   display: block;
   font-size: 16px;
+  font-weight: 600;
 }
 .settings-entry small {
   display: block;
@@ -534,9 +535,11 @@
 }
 @media (max-width: 959px) {
   :root {
-    --mobile-nav-height: 62px;
-    --mobile-nav-bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) - 10px));
-    --mobile-nav-clearance: calc(var(--mobile-nav-height) + var(--mobile-nav-bottom) + 8px);
+    --mobile-nav-height: 64px;
+    --mobile-nav-inset: 5px;
+    --mobile-nav-radius: 32px;
+    --mobile-nav-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+    --mobile-nav-clearance: calc(var(--mobile-nav-height) + var(--mobile-nav-bottom) + 16px);
   }
   .bottom-nav {
     left: 16px;
@@ -544,8 +547,13 @@
     bottom: var(--mobile-nav-bottom);
     width: auto;
     height: var(--mobile-nav-height);
-    padding: 4px 8px;
-    border-radius: 31px;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    max-width: 480px;
+    margin-inline: auto;
+    padding: var(--mobile-nav-inset);
+    border-radius: var(--mobile-nav-radius);
     background: color-mix(in srgb, var(--surface) 68%, transparent);
     border: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
     box-shadow:
@@ -559,20 +567,24 @@
       visibility 150ms;
   }
   .bottom-nav-item {
-    min-height: 52px;
+    min-width: 0;
+    min-height: 0;
     padding: 0;
-    border-radius: 999px;
+    border-radius: calc(var(--mobile-nav-radius) - var(--mobile-nav-inset) - 1px);
     gap: 0;
+  }
+  .bottom-nav-item:active {
+    transform: none;
   }
   .bottom-nav-content {
     display: flex;
-    width: 76px;
-    height: 52px;
+    width: 100%;
+    height: 100%;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 2px;
-    border-radius: 999px;
+    border-radius: inherit;
   }
   .bottom-nav-content svg {
     box-sizing: border-box;
@@ -584,7 +596,7 @@
   }
   .bottom-nav > .selection-indicator {
     background: color-mix(in srgb, var(--accent-soft) 84%, transparent);
-    border-radius: 999px;
+    border-radius: calc(var(--mobile-nav-radius) - var(--mobile-nav-inset) - 1px);
     box-shadow: inset 0 1px 0 color-mix(in srgb, white 26%, transparent);
   }
   .bottom-nav-item.active svg {
@@ -597,25 +609,28 @@
     padding-bottom: var(--mobile-nav-clearance);
   }
   .plan-chat-page {
-    height: calc(var(--visual-height, 100dvh) - var(--mobile-nav-clearance));
+    height: calc(var(--visual-height, 100dvh) - var(--mobile-nav-clearance) - var(--page-top));
     min-height: 0;
   }
+  .main:has(.plan-chat-page) .main-inner {
+    padding-bottom: 0;
+  }
   .plan-chat-page .view-header {
-    padding: 18px 0;
+    padding: 0 0 24px;
   }
   .plan-chat-page .view-header > div:first-child {
     min-width: 0;
     flex: 1;
   }
   .conversation-title {
-    max-width: 150px;
+    max-width: 100%;
   }
   .plan-chat-page .icon-btn {
-    width: 36px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
   }
   .plan-chat-page .view-title {
-    font-size: 26px;
+    font-size: var(--page-title-size);
   }
   .chat-scroll {
     min-height: 0;
@@ -646,6 +661,10 @@
     background: var(--bg);
     z-index: 25;
   }
+  :root[data-keyboard-open='true'] .plan-chat-page .view-header {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
   :root[data-keyboard-open='true'] .chat-footnote {
     display: none;
   }
@@ -661,18 +680,34 @@
   }
 }
 
-/* Dense calendar, with nested corner radii derived from the container inset. */
-.today-header {
-  align-items: center;
-  padding-top: 20px;
-  padding-bottom: 16px;
-}
+/* Calendar and task cards derive inner corners from their container inset. */
 .task-view .calendar-heading {
-  margin-bottom: 8px;
+  min-height: 44px;
+  margin-bottom: 12px;
+}
+.calendar-heading h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+.calendar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.calendar-actions > span {
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.calendar-actions .back-today {
+  gap: 4px;
+  padding-inline: 10px;
+  font-size: 12px;
 }
 .task-view .week-strip {
   padding: 6px;
-  margin-bottom: 18px;
+  margin-bottom: 24px;
   border-radius: 22px;
 }
 .task-view .week-day {
@@ -697,6 +732,86 @@
   padding: var(--slot-inset);
   border-radius: var(--slot-radius);
 }
+.day-toolbar {
+  gap: 8px;
+  min-height: 44px;
+}
+.day-toolbar h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+.day-filters {
+  align-items: center;
+  flex: none;
+  gap: 2px;
+}
+.day-filters button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: 12px;
+  white-space: nowrap;
+}
+.day-filters .schedule-search {
+  width: 36px;
+  padding: 0;
+}
+.day-filters .schedule-search:hover {
+  background: var(--surface);
+  color: var(--accent);
+}
+.slot-head {
+  align-items: center;
+}
+.slot-none {
+  background: var(--accent-soft);
+  color: var(--on-container);
+}
+.slot-plus-btn {
+  margin-left: auto;
+}
+.slot-section:last-child,
+.settings-card:last-child {
+  margin-bottom: 0;
+}
+.sheet-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  min-width: 0;
+  flex-wrap: wrap;
+  font-size: 18px;
+  font-weight: 600;
+}
+.sheet-header {
+  gap: 12px;
+  padding: 12px var(--card-inset);
+}
+.sheet-scroll {
+  padding: 0 var(--card-inset) var(--card-inset);
+}
+.sheet-count {
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 400;
+}
+.welcome-features {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+.welcome-features li {
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.welcome-f-title {
+  font-weight: 500;
+}
 .slot-section .task-row-wrap,
 .slot-section .task-row,
 .slot-section .task-swipe-del,
@@ -714,6 +829,22 @@
     --slot-inset: 12px;
   }
   .task-view .week-strip {
-    padding: 5px 2px;
+    padding: 6px;
+  }
+  .task-view .week-nav {
+    width: 24px;
+    height: 48px;
+  }
+  .day-filters button {
+    padding-inline: 8px;
+  }
+  .day-toolbar h2 {
+    font-size: 15px;
+  }
+  .calendar-actions {
+    gap: 4px;
+  }
+  .calendar-heading:has(.back-today) .calendar-actions > span {
+    display: none;
   }
 }

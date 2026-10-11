@@ -149,7 +149,7 @@ try {
     'unsupported reasoning switches off globally',
   );
   assert(
-    await page.getByText('当前服务不支持深度思考，已关闭并自动重试。').isVisible(),
+    await page.getByText('已切换普通生成').isVisible(),
     'reasoning fallback is explained',
   );
 
@@ -174,7 +174,7 @@ try {
     `streaming does not pull the user away from older messages (${awayScroll.top})`,
   );
   await page.getByRole('button', { name: '停止生成' }).click();
-  await page.getByText('生成已停止，未执行任务操作').waitFor();
+  await page.getByText('已停止 · 未修改任务').waitFor();
   assert(!streamFinished, 'stop aborts an active stream');
   assert((await page.locator('.chat-markdown').last().innerText()).length > 0, 'stop preserves partial output');
 
@@ -183,7 +183,7 @@ try {
   );
   await input.fill('模拟流中断');
   await input.press('Enter');
-  await page.getByText('生成已中断，未执行任务操作').waitFor();
+  await page.getByText('已中断 · 未修改任务').waitFor();
   assert(
     (await page.locator('.chat-markdown').last().innerText()).includes('已生成的部分内容'),
     'interrupted stream preserves partial output',
@@ -212,6 +212,10 @@ try {
       navHeight: nav.height,
       indicatorWidth: indicator.width,
       indicatorHeight: indicator.height,
+      contentWidth: content.width,
+      contentHeight: content.height,
+      navInset: indicator.top - nav.top,
+      navRadius: Number.parseFloat(navStyle.borderRadius),
       aligned:
         Math.abs(indicator.x - content.x) < 1 && Math.abs(indicator.y - content.y) < 1,
       composerGap: nav.top - composer.bottom,
@@ -220,14 +224,15 @@ try {
       indicatorRadius: indicatorStyle.borderRadius,
     };
   });
-  assert(geometry.navBottom === 6 && geometry.navHeight === 62, 'mobile navigation sits lower');
+  assert(geometry.navBottom === 8 && geometry.navHeight === 64, 'mobile navigation has a consistent bottom gap');
   assert(
-    geometry.indicatorWidth === 76 && geometry.indicatorHeight === 52 && geometry.aligned,
-    'selection capsule is aligned at 76 by 52 pixels',
+    Math.abs(geometry.indicatorWidth - geometry.contentWidth) < 1 &&
+      Math.abs(geometry.indicatorHeight - geometry.contentHeight) < 1 && geometry.aligned,
+    'selection capsule fills its navigation item',
   );
-  assert(geometry.indicatorRadius === '999px', 'selection uses a full capsule radius');
+  assert(Math.abs(geometry.navRadius - Number.parseFloat(geometry.indicatorRadius) - geometry.navInset) < 1, 'selection and navigation have concentric corners');
   assert(geometry.navBackdrop.includes('blur(22px)'), 'mobile navigation uses frosted glass blur');
-  assert(geometry.composerGap >= 7 && geometry.composerGap <= 10, 'composer aligns above navigation');
+  assert(Math.abs(geometry.composerGap - 16) < 1, 'composer shares the standard spacing above navigation');
   assert(geometry.overflow <= 0, 'mobile plan has no horizontal overflow');
   assert(errors.length === 0, 'no browser runtime errors');
   await page.screenshot({ path: 'artifacts/streaming-plan-iphone.png', fullPage: true });

@@ -89,7 +89,7 @@ export function PlanView({
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => {
     if (!present && request.current) {
-      interrupt('已离开聊天，本次请求已停止，没有修改计划。');
+      interrupt('已停止 · 未修改任务');
     }
   }, [present, dispatch]);
   useLayoutEffect(() => {
@@ -131,7 +131,7 @@ export function PlanView({
         },
         onReasoningFallback: () => {
           dispatch({ type: 'setSettings', patch: { reasoningEnabled: false } });
-          setFallbackNotice('当前服务不支持深度思考，已关闭并自动重试。');
+          setFallbackNotice('已切换普通生成');
         },
       });
       if (controller.signal.aborted) return;
@@ -190,7 +190,7 @@ export function PlanView({
     return () => input?.removeEventListener('beforeinput', beforeInput);
   }, []);
   const cancel = () => {
-    interrupt('已停止，本次没有修改计划。');
+    interrupt('已停止 · 未修改任务');
   };
 
   const newConversation = () => {
@@ -292,8 +292,7 @@ export function PlanView({
                 <span className="chat-avatar large">
                   <Sparkles size={30} />
                 </span>
-                <h2>一起，把日子安排好。</h2>
-                <p>可以从一个想法开始，也可以随时调整已有计划。</p>
+                <h2>安排计划</h2>
                 <div className="chat-starters">
                   {[
                     '帮我安排明天的学习计划',
@@ -337,11 +336,11 @@ export function PlanView({
                         item.content
                       )}
                     </div>
-                    {(item.status === 'stopped' || item.status === 'interrupted') && (
+                    {(item.status === 'stopped' || item.status === 'interrupted') && item.content !== '已停止 · 未修改任务' && (
                       <div className="chat-interrupted">
                         {item.status === 'stopped'
-                          ? '生成已停止，未执行任务操作'
-                          : '生成已中断，未执行任务操作'}
+                          ? '已停止 · 未修改任务'
+                          : '已中断 · 未修改任务'}
                       </div>
                     )}
                     {!!item.changes?.length && (
@@ -408,7 +407,7 @@ export function PlanView({
             {busy && !streaming?.content && (
               <div className="chat-thinking" role="status">
                 <Sparkles size={16} />
-                <span>{reasoningEnabled ? '正在深度思考与整理计划' : '正在思考与整理计划'}</span>
+                <span>{reasoningEnabled ? '思考中…' : '生成中…'}</span>
                 <i />
                 <i />
                 <i />
@@ -418,8 +417,8 @@ export function PlanView({
           {!hasKey && (
             <button className="chat-config" onClick={() => navigate({ view: 'settings' })}>
               <KeyRound size={16} />
-              <span>连接 AI 助手，开始聊天安排计划</span>
-              <span>去设置 →</span>
+              <span>连接 AI</span>
+              <span>设置 →</span>
             </button>
           )}
           <div className="chat-reasoning-bar">
@@ -480,7 +479,7 @@ export function PlanView({
               rows={1}
               enterKeyHint="send"
               aria-label="发送给计划助手"
-              placeholder={hasKey ? '说说你的安排，或让我调整已有任务…' : '先在设置中连接 AI 助手'}
+              placeholder={hasKey ? '输入安排…' : '请先连接 AI'}
               value={text}
               maxLength={6000}
               disabled={!hasKey}
@@ -531,7 +530,6 @@ export function PlanView({
             </h2>
             <span>{pending.length} 件待办</span>
           </div>
-          <p className="chat-plan-hint">与「今天」实时同步，也可以点开任务手动调整。</p>
           <div className="chat-plan-items">
             <AnimatePresence initial={false}>
               {pending.map((task) => (
@@ -541,8 +539,7 @@ export function PlanView({
             {!pending.length && (
               <div className="chat-list-empty">
                 <Plus size={26} />
-                <p>还没有待办计划</p>
-                <span>发一句话，开始新的安排。</span>
+                <p>暂无待办</p>
               </div>
             )}
           </div>
@@ -572,7 +569,6 @@ export function PlanView({
                   <Plus size={16} />
                   新建对话
                 </button>
-                <p className="settings-card-desc">每个对话独立保留上下文，任务列表共享。</p>
                 <div className="conversation-list">
                   {[...(state.conversations ?? [])]
                     .sort((a, b) => b.updatedAt - a.updatedAt)
@@ -635,7 +631,7 @@ export function PlanView({
                         }}
                       />
                     ))
-                  : '还没有待办计划，试着让 AI 添加一件事。'}
+                  : '暂无待办'}
               </div>
             }
           />
